@@ -4,18 +4,14 @@ import "./global.css"
 
 export default function App() {
   return (
-    <View style={styles.container}>
+    <View className='flex-1 bg-[#fff] items-center justify-center'>
       <Text className='text-blue-700'>Open up App.tsx to start working on your app!</Text>
+      <Text className='text-4xl text-purple-600 bg-black text-center py-4'>
+        this is going to start tonight
+      </Text>
       <StatusBar style="auto" />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  
