@@ -14,17 +14,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 
-export type RootStackParamList = {
-    Login: undefined;
-    Register: undefined;
-    Home: undefined;
-};
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+// export type RootStackParamList = {
+//     Login: undefined;
+//     Register: undefined;
+//     Home: undefined;
+// };
+// type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const navigation = useNavigation<NavProp>();
+    const navigation = useNavigation<any>();
     useEffect(() => {
         const checkLoginStatus = async () => {
             try {
@@ -87,7 +87,7 @@ const LoginScreen = () => {
                 className="mt-12">
                     <View>
                         <Text 
-                            className="text-lg font-semibold text-blue-700">
+                            className="text-lg font-semibold text-white">
                             Email
                         </Text>
 
@@ -103,7 +103,7 @@ const LoginScreen = () => {
                     <View 
                     className="mt-3">
                         <Text 
-                            className="text-lg font-semibold text-blue-700"
+                            className="text-lg font-semibold text-white"
                         >
                             Password
                         </Text>
@@ -123,12 +123,7 @@ const LoginScreen = () => {
                         className="w-52 bg-blue-600 mt-12 mx-auto p-4 rounded-md"
                     >
                         <Text
-                            style={{
-                                color: "white",
-                                fontSize: 16,
-                                fontWeight: "bold",
-                                textAlign: "center",
-                            }}
+                            className="text-white text-base font-bold text-center"
                         >
                             Login
                         </Text>
@@ -138,7 +133,7 @@ const LoginScreen = () => {
                         onPress={() => navigation.navigate("Register")}
                         className="mt-4"
                     >
-                        <Text style={{ textAlign: "center", color: "gray", fontSize: 16 }}>
+                        <Text className="text-center text-gray-600 text-base">
                             Dont't have an account? <Text className="text-blue-600">Sign Up</Text>
                         </Text>
                     </Pressable>
@@ -149,5 +144,3 @@ const LoginScreen = () => {
 };
 
 export default LoginScreen;
-
-const styles = StyleSheet.create({});
