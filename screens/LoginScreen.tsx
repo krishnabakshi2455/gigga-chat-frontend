@@ -11,15 +11,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-
-
-// export type RootStackParamList = {
-//     Login: undefined;
-//     Register: undefined;
-//     Home: undefined;
-// };
-// type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
