@@ -6,16 +6,17 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import cors from "cors"
 import JWT from "jsonwebtoken"
 import dotenv from "dotenv";
-
+import User from "./models/user";
+import Message from "./models/message";
 
 
 
 
 dotenv.config();
 const app = express();
+const jwtsecret = process.env.JWT_SECRET || ""
 
-
-const port = 8000
+const port = 8082
 
 
 app.use(cors());
@@ -39,16 +40,12 @@ mongoose.connect(mongoURL).then(() => {
 })
 
 
-app.listen(port, () => {
-    console.log(`the server has started on port ${port}`);
-})
 
 
-import User from "./models/user";
-import Message from "./models/message";
 
 //route for registration of the user
 
+// input register
 app.post("/register", (req, res) => {
     const { name, email, password, image } = req.body;
 
@@ -67,6 +64,41 @@ app.post("/register", (req, res) => {
         });
 });
 
+
+// google register
+app.post("/googleauth", async (req, res) => {
+    const { name, email, image } = req.body;
+
+    try {
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
+            // Generate token for existing user
+            const token = JWT.sign({ userId: existingUser._id }, jwtsecret, { expiresIn: "30m" });
+            return res.status(200).json({
+                message: "User logged in successfully",
+                token,
+                user: existingUser
+            });
+        }
+
+        const newUser = new User({ name, email, image });
+        await newUser.save();
+
+        // Generate token for new user
+        const token = JWT.sign({ userId: newUser._id }, jwtsecret, { expiresIn: "30m" });
+        res.status(200).json({
+            message: "Google user registered successfully",
+            token,
+            user: newUser
+        });
+    } catch (err) {
+        console.log("Error registering Google user:", err);
+        res.status(500).json({ message: "Error registering Google user" });
+    }
+});
+
+
 //function to create a token for the user
 const createToken = (userId: any) => {
     // Set the token payload
@@ -75,15 +107,12 @@ const createToken = (userId: any) => {
     };
 
     // Generate the token with a secret key and expiration time
-    const token = JWT.sign(payload, "Q$r2K6W8n!jCW%Zk", { expiresIn: "1h" });
+    const token = JWT.sign(payload, jwtsecret, { expiresIn: "30m" });
 
     return token;
 };
 
-app.use((req, res, next) => {
-    console.log(req.method, req.url);
-    next();
-});
+
 
 
 // //endpoint for logging in of that particular user
@@ -118,3 +147,26 @@ app.post("/login", (req, res) => {
             res.status(500).json({ message: "Internal server Error!" });
         });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+app.listen(port, () => {
+    console.log(`the server has started on port ${port}`);
+})

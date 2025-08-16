@@ -35,5 +35,10 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
 .hintrc
 .env
+config.ts
+android_client.json
+web_client.json

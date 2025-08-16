@@ -14,9 +14,12 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/native": "^7.1.14",
     "@react-navigation/native-stack": "^7.3.21",
+    "add": "^2.0.6",
     "axios": "^1.11.0",
     "expo": "~53.0.17",
+    "expo-auth-session": "^6.2.1",
     "expo-status-bar": "~2.2.3",
+    "expo-web-browser": "^14.2.0",
     "nativewind": "^4.1.23",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -25,7 +28,8 @@
     "react-native-reanimated": "^3.18.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-web": "^0.20.0"
+    "react-native-web": "^0.20.0",
+    "yarn": "^1.22.22"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

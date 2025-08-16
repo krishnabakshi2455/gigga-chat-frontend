@@ -12,6 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "scheme": "myapp",
     "ios": {
       "supportsTablet": true
     },
@@ -20,7 +21,13 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.krishnabakshi.giggachat"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4931f919-a3ac-4696-9584-92891116929f"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",

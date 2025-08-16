@@ -11,11 +11,11 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true,
+        required: false, // ← Changed to false for Google users
     },
     image: {
         type: String,
-        required: true,
+        required: false, // ← Changed to false (optional)
     },
     freindRequests: [
         {
@@ -37,8 +37,5 @@ const userSchema = new mongoose.Schema({
     ],
 });
 
-
 const User = mongoose.model("User", userSchema);
-
 export default User
-// module.exports = User
