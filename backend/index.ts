@@ -16,7 +16,7 @@ dotenv.config();
 const app = express();
 const jwtsecret = process.env.JWT_SECRET || ""
 
-const port = 8082
+const port = 8000
 
 
 app.use(cors());
