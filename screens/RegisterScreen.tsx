@@ -28,14 +28,37 @@ const RegisterScreen = () => {
   const [image, setImage] = useState("");
   const navigation = useNavigation<any>();
 
-  // Google Auth setup
+
+  // const redirectUri = __DEV__
+  //   ? AuthSession.makeRedirectUri(
+  //     // @ts-ignore
+  //     { useProxy: true }
+  //   )
+  //   : AuthSession.makeRedirectUri({ scheme: "giggachat" });
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: "giggachat",
+    path: "redirect", // ensures giggachat://redirect
+  });
+
+
+  console.log("🔍 DEBUG: Redirect URI being used:", redirectUri);
+
+  // console.log("🔍 DEBUG: Is Development:", __DEV__);
+
+  // Alternative: Create manual HTTPS URI if proxy doesn't work
+  // const httpsRedirectUri = "https://auth.expo.io/@krishnabakshi/gigga-chat";
+  // const finalRedirectUri = redirectUri.includes('giggachat://') ? httpsRedirectUri : redirectUri;
+
+  // console.log("🔍 DEBUG: Final Redirect URI being used in register:", finalRedirectUri);
+
+  // Google Auth setup with proper configuration
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: config.Android_Client_ID,
+    // iosClientId: config.IOS_Client_ID, // Add iOS client ID if you have one
     webClientId: config.Web_Client_ID,
-    redirectUri: AuthSession.makeRedirectUri({
-      // @ts-ignore
-      useProxy: true,
-    }),
+    redirectUri,
+    scopes: ['profile', 'email'],
+    // responseType: AuthSession.ResponseType.Code,
   });
 
   useEffect(() => {
@@ -65,22 +88,7 @@ const RegisterScreen = () => {
         await AsyncStorage.setItem('userData', JSON.stringify(backendRes.data.user));
       }
 
-      navigation.replace("Home"); 
-
-      // Alert.alert(
-      //   "Google Sign-In Successful",
-      //   "Welcome " + user.name,
-      //   [
-      //     {
-      //       text: "OK",
-      //       onPress: () => {
-      //         // Navigate to home/main screen after user clicks OK
-      //         navigation.replace("Home"); 
-      //       }
-      //     }
-      //   ]
-      // );
-
+      navigation.replace("Home");
       console.log("Backend Google login response:", backendRes.data);
 
     } catch (error) {
@@ -204,7 +212,7 @@ const RegisterScreen = () => {
             className="w-60 bg-white mx-auto p-4 rounded-md"
           >
             <Text className="text-base font-bold flex items-center gap-5 justify-center">
-              <Image source={require("../assets/google-svg.svg")} style={{ width: 30, height: 30 }} />
+              <Image source={require("../assets/google-svg.png")} style={{ width: 30, height: 30 }} />
               Sign Up with Google
             </Text>
           </Pressable>
@@ -219,7 +227,7 @@ const RegisterScreen = () => {
             </Text>
           </Pressable>
 
-        
+
 
           <Pressable onPress={() => navigation.goBack()} className="mt-4">
             <Text className="text-center text-gray-600 text-base">
