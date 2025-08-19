@@ -26,7 +26,7 @@ const RegisterScreen = () => {
       image: image,
     };
 
-    // send a POST  request to the backend API to register the user
+  
     axios
       .post(`${config.BACKEND_URL}/register`, user)
       .then((response) => {
