@@ -10,6 +10,7 @@ import {
 import React, { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
+import config from "../config";
 
 const RegisterScreen = () => {
   const [email, setEmail] = useState("");
@@ -27,7 +28,7 @@ const RegisterScreen = () => {
 
     // send a POST  request to the backend API to register the user
     axios
-      .post("http://localhost:8000/register", user)
+      .post(`${config.BACKEND_URL}/register`, user)
       .then((response) => {
         console.log(response);
         Alert.alert(
