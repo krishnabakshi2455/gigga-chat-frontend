@@ -2561,7 +2561,7 @@ expo-constants@~17.1.7:
     "@expo/config" "~11.0.12"
     "@expo/env" "~1.0.7"
 
-expo-crypto@~14.1.5:
+expo-crypto@^14.1.5, expo-crypto@~14.1.5:
   version "14.1.5"
   resolved "https://registry.yarnpkg.com/expo-crypto/-/expo-crypto-14.1.5.tgz#1c29ddd4657d96af6358a9ecdc85a0c344c9ae0c"
   integrity sha512-ZXJoUMoUeiMNEoSD4itItFFz3cKrit6YJ/BR0hjuwNC+NczbV9rorvhvmeJmrU9O2cFQHhJQQR1fjQnt45Vu4Q==
