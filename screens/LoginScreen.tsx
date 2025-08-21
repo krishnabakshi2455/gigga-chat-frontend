@@ -25,6 +25,10 @@ const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [errors, setErrors] = useState({
+        email: "",
+        password: "",
+    });
     const navigation = useNavigation<any>();
 
     useEffect(() => {
@@ -41,7 +45,62 @@ const LoginScreen = () => {
         checkLoginStatus();
     }, []);
 
+    // Email validation function
+    const isValidEmail = (email:string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    // Form validation function
+    const validateForm = () => {
+        let tempErrors = {
+            email: "",
+            password: "",
+        };
+        let isValid = true;
+
+        // Email validation
+        if (!email.trim()) {
+            tempErrors.email = "Email is required";
+            isValid = false;
+        } else if (!isValidEmail(email)) {
+            tempErrors.email = "Please enter a valid email address";
+            isValid = false;
+        }
+
+        // Password validation
+        if (!password.trim()) {
+            tempErrors.password = "Password is required";
+            isValid = false;
+        } else if (password.length < 6) {
+            tempErrors.password = "Password must be at least 6 characters";
+            isValid = false;
+        }
+
+        setErrors(tempErrors);
+        return isValid;
+    };
+
+    // Clear error when user starts typing
+    const handleEmailChange = (text:string) => {
+        setEmail(text);
+        if (errors.email) {
+            setErrors(prev => ({ ...prev, email: "" }));
+        }
+    };
+
+    const handlePasswordChange = (text:string) => {
+        setPassword(text);
+        if (errors.password) {
+            setErrors(prev => ({ ...prev, password: "" }));
+        }
+    };
+
     const handleLogin = () => {
+        if (!validateForm()) {
+            return;
+        }
+
         const user = {
             email: email,
             password: password,
@@ -117,18 +176,26 @@ const LoginScreen = () => {
                     </Text>
                 </View>
 
-                <View className="mt-12 ">
+                <View className="mt-12">
                     <View className="w-96 px-4">
                         <Text className="text-lg font-semibold text-white">
                             Email
                         </Text>
                         <TextInput
                             value={email}
-                            onChangeText={(text) => setEmail(text)}
-                            className={`${email ? "text-lg" : " text-lg"} text-white border-b-2 mb-3 border-gray-400`}
+                            onChangeText={handleEmailChange}
+                            className={`${errors.email
+                                    ? "text-lg text-white border-b-2 mb-1 border-red-500"
+                                    : "text-lg text-white border-b-2 mb-3 border-gray-400"
+                                }`}
                             placeholderTextColor={"grey"}
                             placeholder="Enter Your Email"
                         />
+                        {errors.email ? (
+                            <Text className="text-red-500 text-sm mb-3">
+                                {errors.email}
+                            </Text>
+                        ) : null}
                     </View>
 
                     <View className="mt-3 w-96 px-4">
@@ -137,12 +204,20 @@ const LoginScreen = () => {
                         </Text>
                         <TextInput
                             value={password}
-                            onChangeText={(text) => setPassword(text)}
+                            onChangeText={handlePasswordChange}
                             secureTextEntry={true}
-                            className={`${email ? "text-lg" : " text-lg"} text-white border-b-2 mb-3 border-gray-400`}
+                            className={`${errors.password
+                                    ? "text-lg text-white border-b-2 mb-1 border-red-500"
+                                    : "text-lg text-white border-b-2 mb-3 border-gray-400"
+                                }`}
                             placeholderTextColor={"grey"}
                             placeholder="Password"
                         />
+                        {errors.password ? (
+                            <Text className="text-red-500 text-sm mb-3">
+                                {errors.password}
+                            </Text>
+                        ) : null}
                     </View>
 
                     <Pressable
@@ -181,8 +256,6 @@ const LoginScreen = () => {
                             </Text>
                         )}
                     </Pressable>
-
-                    
                 </View>
             </KeyboardAvoidingView>
         </View>
