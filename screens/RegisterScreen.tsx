@@ -8,7 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,15 +21,92 @@ const RegisterScreen = () => {
   const [password, setPassword] = useState("");
   const [image, setImage] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [errors, setErrors] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
   const navigation = useNavigation<any>();
+
+  // Email validation function
+  const isValidEmail = (email:string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Form validation function
+  const validateForm = () => {
+    let tempErrors = {
+      name: "",
+      email: "",
+      password: "",
+    };
+    let isValid = true;
+
+    // Name validation
+    if (!name.trim()) {
+      tempErrors.name = "Name is required";
+      isValid = false;
+    } else if (name.trim().length < 2) {
+      tempErrors.name = "Name must be at least 2 characters";
+      isValid = false;
+    }
+
+    // Email validation
+    if (!email.trim()) {
+      tempErrors.email = "Email is required";
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      tempErrors.email = "Please enter a valid email address";
+      isValid = false;
+    }
+
+    // Password validation
+    if (!password.trim()) {
+      tempErrors.password = "Password is required";
+      isValid = false;
+    } else if (password.length < 6) {
+      tempErrors.password = "Password must be at least 6 characters";
+      isValid = false;
+    }
+
+    setErrors(tempErrors);
+    return isValid;
+  };
+
+  // Clear error when user starts typing
+  const handleNameChange = (text:string) => {
+    setName(text);
+    if (errors.name) {
+      setErrors(prev => ({ ...prev, name: "" }));
+    }
+  };
+
+  const handleEmailChange = (text:string) => {
+    setEmail(text);
+    if (errors.email) {
+      setErrors(prev => ({ ...prev, email: "" }));
+    }
+  };
+
+  const handlePasswordChange = (text:string) => {
+    setPassword(text);
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: "" }));
+    }
+  };
+
   const handleRegister = () => {
+    if (!validateForm()) {
+      return;
+    }
+
     const user = {
       name: name,
       email: email,
       password: password,
       image: image,
     };
-
 
     axios
       .post(`${config.BACKEND_URL}/register`, user)
@@ -43,6 +120,12 @@ const RegisterScreen = () => {
         setEmail("");
         setPassword("");
         setImage("");
+        // Clear errors after successful registration
+        setErrors({
+          name: "",
+          email: "",
+          password: "",
+        });
       })
       .catch((error) => {
         Alert.alert(
@@ -112,72 +195,89 @@ const RegisterScreen = () => {
     };
     checkLoginStatus();
   }, []);
+
   return (
-    <View
-      className="bg-black flex-1 p-3 items-center"
-    >
+    <View className="bg-black flex-1 p-3 items-center">
       <KeyboardAvoidingView>
-        <View
-          className="mt-12 justify-center items-center"
-        >
+        <View className="mt-12 justify-center items-center">
           <Text className="text-lg font-semibold mt-4 text-white">
             Register To your Account
           </Text>
         </View>
 
-        <View className="mt-4 w-full flex flex-col items-center justify-center ">
+        <View className="mt-4 w-full flex flex-col items-center justify-center">
           <View className="w-96 px-4">
             <Text className="text-lg font-semibold text-white">
               Name
             </Text>
-
             <TextInput
               value={name}
-              onChangeText={(text) => setName(text)}
-              className={`text-lg border-b-gray-600 border-b mb-3 text-white`}
+              onChangeText={handleNameChange}
+              className={`${errors.name
+                  ? "text-lg text-white border-b-2 mb-1 border-red-500"
+                  : "text-lg text-white border-b-2 mb-3 border-gray-400"
+                }`}
               placeholderTextColor={"gray"}
               placeholder="Enter your name"
             />
+            {errors.name ? (
+              <Text className="text-red-500 text-sm mb-3">
+                {errors.name}
+              </Text>
+            ) : null}
           </View>
 
           <View className="w-96 px-4">
             <Text className="text-lg font-semibold text-white">
               Email
             </Text>
-
             <TextInput
               value={email}
-              onChangeText={(text) => setEmail(text)}
-              className={`text-lg border-b-gray-600 border-b mb-3 text-white`}
+              onChangeText={handleEmailChange}
+              className={`${errors.email
+                  ? "text-lg text-white border-b-2 mb-1 border-red-500"
+                  : "text-lg text-white border-b-2 mb-3 border-gray-400"
+                }`}
               placeholderTextColor={"gray"}
               placeholder="enter Your Email"
             />
+            {errors.email ? (
+              <Text className="text-red-500 text-sm mb-3">
+                {errors.email}
+              </Text>
+            ) : null}
           </View>
 
           <View className="w-96 px-4">
             <Text className="text-lg font-semibold text-white">
               Password
             </Text>
-
             <TextInput
               value={password}
-              onChangeText={(text) => setPassword(text)}
+              onChangeText={handlePasswordChange}
               secureTextEntry={true}
-              className={`text-lg border-b-gray-600 border-b mb-3 text-white`}
+              className={`${errors.password
+                  ? "text-lg text-white border-b-2 mb-1 border-red-500"
+                  : "text-lg text-white border-b-2 mb-3 border-gray-400"
+                }`}
               placeholderTextColor={"gray"}
-              placeholder="Passowrd"
+              placeholder="Password"
             />
+            {errors.password ? (
+              <Text className="text-red-500 text-sm mb-3">
+                {errors.password}
+              </Text>
+            ) : null}
           </View>
 
           <View className="w-96 px-4">
             <Text className="text-lg font-semibold text-white">
               Image
             </Text>
-
             <TextInput
               value={image}
               onChangeText={(text) => setImage(text)}
-              className={`text-lg border-b-gray-600 border-b mb-3 text-white`}
+              className="text-lg text-white border-b-2 mb-3 border-gray-400"
               placeholderTextColor={"gray"}
               placeholder="Image"
             />
@@ -187,9 +287,7 @@ const RegisterScreen = () => {
             onPress={handleRegister}
             className="w-52 bg-blue-600 mt-12 mx-auto p-4 rounded-md"
           >
-            <Text
-              className="text-white text-base font-bold text-center"
-            >
+            <Text className="text-white text-base font-bold text-center">
               Register
             </Text>
           </Pressable>
@@ -202,7 +300,6 @@ const RegisterScreen = () => {
               Already Have an account? <Text className="text-blue-600">Sign In</Text>
             </Text>
           </Pressable>
-
 
           <View className="w-full py-4 flex justify-center items-center">
             <Text className="text-white text-lg">Or</Text>
