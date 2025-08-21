@@ -39,6 +39,6 @@ yarn-error.*
 
 .hintrc
 .env
-config.ts
+# config.ts
 android_client.json
 web_client.json
