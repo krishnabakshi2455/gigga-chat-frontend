@@ -129,7 +129,7 @@ const LoginScreen = () => {
             const userInfo = await GoogleSignin.signIn();
 
             // Log the structure to debug (remove this after testing)
-            console.log('Google userInfo structure:', JSON.stringify(userInfo, null, 2));
+            // console.log('Google userInfo structure:', JSON.stringify(userInfo, null, 2));
 
             // Send to your existing backend - matches your /googleauth endpoint
             const googleUser = {
