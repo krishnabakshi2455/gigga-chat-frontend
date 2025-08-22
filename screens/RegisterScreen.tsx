@@ -29,7 +29,7 @@ const RegisterScreen = () => {
   const navigation = useNavigation<any>();
 
   // Email validation function
-  const isValidEmail = (email:string) => {
+  const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
@@ -75,21 +75,21 @@ const RegisterScreen = () => {
   };
 
   // Clear error when user starts typing
-  const handleNameChange = (text:string) => {
+  const handleNameChange = (text: string) => {
     setName(text);
     if (errors.name) {
       setErrors(prev => ({ ...prev, name: "" }));
     }
   };
 
-  const handleEmailChange = (text:string) => {
+  const handleEmailChange = (text: string) => {
     setEmail(text);
     if (errors.email) {
       setErrors(prev => ({ ...prev, email: "" }));
     }
   };
 
-  const handlePasswordChange = (text:string) => {
+  const handlePasswordChange = (text: string) => {
     setPassword(text);
     if (errors.password) {
       setErrors(prev => ({ ...prev, password: "" }));
@@ -199,78 +199,80 @@ const RegisterScreen = () => {
   return (
     <View className="bg-black flex-1 p-3 items-center">
       <KeyboardAvoidingView>
-        <View className="mt-12 justify-center items-center">
+        <View className="mt-24 justify-center items-center">
           <Text className="text-lg font-semibold mt-4 text-white">
             Register To your Account
           </Text>
         </View>
 
-        <View className="mt-4 w-full flex flex-col items-center justify-center">
-          <View className="w-96 px-4">
-            <Text className="text-lg font-semibold text-white">
-              Name
-            </Text>
-            <TextInput
-              value={name}
-              onChangeText={handleNameChange}
-              className={`${errors.name
+        <View className="mt-20 w-full flex flex-col items-center justify-center">
+          <View className="flex flex-col gap-5">
+            <View className="w-96 px-4">
+              <Text className="text-lg font-semibold text-white">
+                Name
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={handleNameChange}
+                className={`${errors.name
                   ? "text-lg text-white border-b-2 mb-1 border-red-500"
                   : "text-lg text-white border-b-2 mb-3 border-gray-400"
-                }`}
-              placeholderTextColor={"gray"}
-              placeholder="Enter your name"
-            />
-            {errors.name ? (
-              <Text className="text-red-500 text-sm mb-3">
-                {errors.name}
-              </Text>
-            ) : null}
-          </View>
+                  }`}
+                placeholderTextColor={"gray"}
+                placeholder="Enter your name"
+              />
+              {errors.name ? (
+                <Text className="text-red-500 text-sm mb-3">
+                  {errors.name}
+                </Text>
+              ) : null}
+            </View>
 
-          <View className="w-96 px-4">
-            <Text className="text-lg font-semibold text-white">
-              Email
-            </Text>
-            <TextInput
-              value={email}
-              onChangeText={handleEmailChange}
-              className={`${errors.email
+            <View className="w-96 px-4">
+              <Text className="text-lg font-semibold text-white">
+                Email
+              </Text>
+              <TextInput
+                value={email}
+                onChangeText={handleEmailChange}
+                className={`${errors.email
                   ? "text-lg text-white border-b-2 mb-1 border-red-500"
                   : "text-lg text-white border-b-2 mb-3 border-gray-400"
-                }`}
-              placeholderTextColor={"gray"}
-              placeholder="enter Your Email"
-            />
-            {errors.email ? (
-              <Text className="text-red-500 text-sm mb-3">
-                {errors.email}
-              </Text>
-            ) : null}
-          </View>
+                  }`}
+                placeholderTextColor={"gray"}
+                placeholder="enter Your Email"
+              />
+              {errors.email ? (
+                <Text className="text-red-500 text-sm mb-3">
+                  {errors.email}
+                </Text>
+              ) : null}
+            </View>
 
-          <View className="w-96 px-4">
-            <Text className="text-lg font-semibold text-white">
-              Password
-            </Text>
-            <TextInput
-              value={password}
-              onChangeText={handlePasswordChange}
-              secureTextEntry={true}
-              className={`${errors.password
+            <View className="w-96 px-4">
+              <Text className="text-lg font-semibold text-white">
+                Password
+              </Text>
+              <TextInput
+                value={password}
+                onChangeText={handlePasswordChange}
+                secureTextEntry={true}
+                className={`${errors.password
                   ? "text-lg text-white border-b-2 mb-1 border-red-500"
                   : "text-lg text-white border-b-2 mb-3 border-gray-400"
-                }`}
-              placeholderTextColor={"gray"}
-              placeholder="Password"
-            />
-            {errors.password ? (
-              <Text className="text-red-500 text-sm mb-3">
-                {errors.password}
-              </Text>
-            ) : null}
+                  }`}
+                placeholderTextColor={"gray"}
+                placeholder="Password"
+              />
+              {errors.password ? (
+                <Text className="text-red-500 text-sm mb-3">
+                  {errors.password}
+                </Text>
+              ) : null}
+            </View>
           </View>
 
-          <View className="w-96 px-4">
+          {/* <View className="w-96 px-4">
             <Text className="text-lg font-semibold text-white">
               Image
             </Text>
@@ -281,7 +283,7 @@ const RegisterScreen = () => {
               placeholderTextColor={"gray"}
               placeholder="Image"
             />
-          </View>
+          </View> */}
 
           <Pressable
             onPress={handleRegister}
@@ -302,14 +304,14 @@ const RegisterScreen = () => {
           </Pressable>
 
           <View className="w-full py-4 flex justify-center items-center">
-            <Text className="text-white text-lg">Or</Text>
+            <Text className="text-gray-600 font-bold text-lg">Or</Text>
           </View>
 
           {/* Simple Google Sign-In Button - Just like the article */}
           <Pressable
             onPress={handleGoogleSignIn}
             disabled={googleLoading}
-            className="w-52 bg-white mt-4 mx-auto p-4 rounded-md flex-row justify-center items-center"
+            className="w-52 bg-white mx-auto p-4 rounded-md flex-row justify-center items-center"
           >
             {googleLoading ? (
               <ActivityIndicator size="small" color="#000" />

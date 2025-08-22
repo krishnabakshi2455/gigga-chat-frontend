@@ -46,7 +46,7 @@ const LoginScreen = () => {
     }, []);
 
     // Email validation function
-    const isValidEmail = (email:string) => {
+    const isValidEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     };
@@ -82,14 +82,14 @@ const LoginScreen = () => {
     };
 
     // Clear error when user starts typing
-    const handleEmailChange = (text:string) => {
+    const handleEmailChange = (text: string) => {
         setEmail(text);
         if (errors.email) {
             setErrors(prev => ({ ...prev, email: "" }));
         }
     };
 
-    const handlePasswordChange = (text:string) => {
+    const handlePasswordChange = (text: string) => {
         setPassword(text);
         if (errors.password) {
             setErrors(prev => ({ ...prev, password: "" }));
@@ -168,58 +168,57 @@ const LoginScreen = () => {
         <View className="flex-1 bg-black p-10 items-center">
             <KeyboardAvoidingView>
                 <View className="mt-24 justify-center items-center flex">
-                    <Text className="text-lg font-semibold text-white">
-                        Sign In
-                    </Text>
                     <Text className="text-lg font-semibold mt-4 text-white">
                         Sign In to Your Account
                     </Text>
                 </View>
 
-                <View className="mt-12">
-                    <View className="w-96 px-4">
-                        <Text className="text-lg font-semibold text-white">
-                            Email
-                        </Text>
-                        <TextInput
-                            value={email}
-                            onChangeText={handleEmailChange}
-                            className={`${errors.email
+                <View className="mt-20">
+                    <View className="flex flex-col gap-5">
+                        <View className="w-96 px-4">
+                            <Text className="text-lg font-semibold text-white">
+                                Email
+                            </Text>
+                            <TextInput
+                                value={email}
+                                onChangeText={handleEmailChange}
+                                className={`${errors.email
                                     ? "text-lg text-white border-b-2 mb-1 border-red-500"
                                     : "text-lg text-white border-b-2 mb-3 border-gray-400"
-                                }`}
-                            placeholderTextColor={"grey"}
-                            placeholder="Enter Your Email"
-                        />
-                        {errors.email ? (
-                            <Text className="text-red-500 text-sm mb-3">
-                                {errors.email}
-                            </Text>
-                        ) : null}
-                    </View>
+                                    }`}
+                                placeholderTextColor={"grey"}
+                                placeholder="Enter Your Email"
+                            />
+                            {errors.email ? (
+                                <Text className="text-red-500 text-sm mb-3">
+                                    {errors.email}
+                                </Text>
+                            ) : null}
+                        </View>
 
-                    <View className="mt-3 w-96 px-4">
-                        <Text className="text-lg font-semibold text-white">
-                            Password
-                        </Text>
-                        <TextInput
-                            value={password}
-                            onChangeText={handlePasswordChange}
-                            secureTextEntry={true}
-                            className={`${errors.password
+                        <View className="mt-3 w-96 px-4">
+                            <Text className="text-lg font-semibold text-white">
+                                Password
+                            </Text>
+                            <TextInput
+                                value={password}
+                                onChangeText={handlePasswordChange}
+                                secureTextEntry={true}
+                                className={`${errors.password
                                     ? "text-lg text-white border-b-2 mb-1 border-red-500"
                                     : "text-lg text-white border-b-2 mb-3 border-gray-400"
-                                }`}
-                            placeholderTextColor={"grey"}
-                            placeholder="Password"
-                        />
-                        {errors.password ? (
-                            <Text className="text-red-500 text-sm mb-3">
-                                {errors.password}
-                            </Text>
-                        ) : null}
-                    </View>
+                                    }`}
+                                placeholderTextColor={"grey"}
+                                placeholder="Password"
+                            />
+                            {errors.password ? (
+                                <Text className="text-red-500 text-sm mb-3">
+                                    {errors.password}
+                                </Text>
+                            ) : null}
+                        </View>
 
+                    </View>
                     <Pressable
                         onPress={handleLogin}
                         className="w-52 bg-blue-600 mt-12 mx-auto p-4 rounded-md"
@@ -239,14 +238,14 @@ const LoginScreen = () => {
                     </Pressable>
 
                     <View className="w-full py-4 flex justify-center items-center">
-                        <Text className="text-white text-lg">Or</Text>
+                        <Text className="text-gray-600 text-lg">Or</Text>
                     </View>
 
                     {/* Simple Google Sign-In Button - Just like the article */}
                     <Pressable
                         onPress={handleGoogleSignIn}
                         disabled={googleLoading}
-                        className="w-52 bg-white mt-4 mx-auto p-4 rounded-md flex-row justify-center items-center"
+                        className="w-52 bg-white mx-auto p-4 rounded-md flex-row justify-center items-center"
                     >
                         {googleLoading ? (
                             <ActivityIndicator size="small" color="#000" />
