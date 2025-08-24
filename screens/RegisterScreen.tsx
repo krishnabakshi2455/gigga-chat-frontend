@@ -272,19 +272,6 @@ const RegisterScreen = () => {
             </View>
           </View>
 
-          {/* <View className="w-96 px-4">
-            <Text className="text-lg font-semibold text-white">
-              Image
-            </Text>
-            <TextInput
-              value={image}
-              onChangeText={(text) => setImage(text)}
-              className="text-lg text-white border-b-2 mb-3 border-gray-400"
-              placeholderTextColor={"gray"}
-              placeholder="Image"
-            />
-          </View> */}
-
           <Pressable
             onPress={handleRegister}
             className="w-52 bg-blue-600 mt-12 mx-auto p-4 rounded-md"

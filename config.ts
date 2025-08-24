@@ -1,6 +1,6 @@
 const config = {
   // BACKEND_URL: 'http://localhost:8000',
-  BACKEND_URL: 'http://192.168.1.35:8000',
+  BACKEND_URL: 'http://172.16.2.85:8000',
   SHA1_Fingerprint: "73:50:45:5D:F5:31:32:C8:67:5D:77:01:90:0F:9D:B0:2B:60:BD:AB",
   Android_Client_ID: "1020305574623-um4bge5gt2gguijql18btp2favachc46.apps.googleusercontent.com",
   Web_Client_ID: "1020305574623-roke1rqa6e6dm7masu8n5dpf895g42hc.apps.googleusercontent.com",
