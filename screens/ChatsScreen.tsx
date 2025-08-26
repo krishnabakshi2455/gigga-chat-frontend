@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { userIdAtom } from "../lib/global.store";
 import { useNavigation } from "@react-navigation/native";
 import config from "../config";
-import UserChat from "../component/UserChat";
+import UserChat from "../components/UserChat";
 
 interface AcceptedFriend {
     _id: string;

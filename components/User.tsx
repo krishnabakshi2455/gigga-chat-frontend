@@ -110,7 +110,7 @@ const User: React.FC<UserProps> = ({ item }) => {
             </View>
 
             <View className="ml-3 flex-1">
-                <Text className="font-bold text-blue-800">{item?.name}</Text>
+                <Text className="font-bold">{item?.name}</Text>
                 <Text className="mt-1 text-gray-500">{item?.email}</Text>
             </View>
 
