@@ -19,16 +19,16 @@ const HomeScreen = () => {
     navigation.setOptions({
       headerTitle: "",
       headerLeft: () => (
-        <Text className="font-bold text-base">Gigga Chat</Text>
+        <Text className="font-bold text-base text-white">Gigga Chat</Text>
       ),
       headerRight: () => (
         <View className="flex flex-row items-center gap-2">
-          <Ionicons onPress={() => navigation.navigate("Chats")} name="chatbox-ellipses-outline" size={24} color="black" />
+          <Ionicons onPress={() => navigation.navigate("Chats")} name="chatbox-ellipses-outline" size={24} color="white" />
           <MaterialIcons
             onPress={() => navigation.navigate("Friends")}
             name="people-outline"
             size={24}
-            color="black"
+            color="white"
           />
         </View>
       ),
