@@ -109,8 +109,8 @@ const User: React.FC<UserProps> = ({ item }) => {
                 />
             </View>
 
-            <View className="ml-3 flex-1">
-                <Text className="font-bold">{item?.name}</Text>
+            <View className="ml-3 flex-1 ">
+                <Text className="font-bold text-white">{item?.name}</Text>
                 <Text className="mt-1 text-gray-500">{item?.email}</Text>
             </View>
 
@@ -127,7 +127,7 @@ const User: React.FC<UserProps> = ({ item }) => {
             ) : (
                 <Pressable
                     onPress={() => sendFriendRequest(userId, item._id)}
-                    className="bg-slate-600 px-4 py-2.5 w-26 rounded-md"
+                    className="bg-blue-600 px-4 py-2.5 w-26 rounded-md"
                 >
                     <Text className="text-center text-white text-xs">
                         Add Friend

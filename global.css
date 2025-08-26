@@ -7,13 +7,3 @@
     background-color: #000;
 }
 
-/* Default background */
-body,
-#root {
-    @apply bg-black;
-}
-
-/* Default text color */
-text {
-    @apply text-blue-600;
-}

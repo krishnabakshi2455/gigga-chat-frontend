@@ -15,26 +15,6 @@ const HomeScreen = () => {
   const [userId, setUserId] = useAtom(userIdAtom);
   const [users, setUsers] = useState([]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: "",
-      headerLeft: () => (
-        <Text className="font-bold text-base text-white">Gigga Chat</Text>
-      ),
-      headerRight: () => (
-        <View className="flex flex-row items-center gap-2">
-          <Ionicons onPress={() => navigation.navigate("Chats")} name="chatbox-ellipses-outline" size={24} color="white" />
-          <MaterialIcons
-            onPress={() => navigation.navigate("Friends")}
-            name="people-outline"
-            size={24}
-            color="white"
-          />
-        </View>
-      ),
-    });
-  }, []);
-
   useEffect(() => {
     const fetchUsers = async () => {
       const token = await AsyncStorage.getItem("authToken");
@@ -63,8 +43,30 @@ const HomeScreen = () => {
 
   // console.log("users", users);
   return (
-    <View>
-      <View className="p-3">
+    <View className="h-full" style={{ backgroundColor: "#000" }}>
+      {/* Custom Header */}
+      <View className="bg-black pt-12 pb-4 px-4 border-b border-gray-600">
+        <View className="flex-row justify-between items-center">
+          <Text className="font-bold text-base text-white">Gigga Chat</Text>
+          <View className="flex-row items-center gap-2">
+            <Ionicons
+              onPress={() => navigation.navigate("Chats")}
+              name="chatbox-ellipses-outline"
+              size={24}
+              color="white"
+            />
+            <MaterialIcons
+              onPress={() => navigation.navigate("Friends")}
+              name="people-outline"
+              size={24}
+              color="white"
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Content */}
+      <View className="p-3 flex-1">
         {users.map((item, index) => (
           <User key={index} item={item} />
         ))}

@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as React from 'react';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
-import "./global.css"
 import HomeScreen from './screens/HomeScreen';
 
 
@@ -14,7 +13,7 @@ const Stacknavigator = () => {
             <Stack.Navigator>
                 <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
-                <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: true, headerStyle: { backgroundColor:"#000"} }}/>
+                <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: true, }} />
             </Stack.Navigator>
         </NavigationContainer>
     )
