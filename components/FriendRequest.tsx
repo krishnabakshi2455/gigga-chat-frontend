@@ -6,8 +6,6 @@ import { userIdAtom } from "../lib/global.store";
 import config from "../config";
 import { FriendRequestProps } from "../lib/types";
 
-
-
 const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, setFriendRequests }) => {
     const [userId] = useAtom(userIdAtom);
     const [loading, setLoading] = useState<boolean>(false);
@@ -81,7 +79,7 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
     };
 
     return (
-        <View className="flex-row items-center justify-between my-2.5 p-3 bg-white rounded-lg shadow-sm">
+        <View className="flex-row items-center justify-between my-2.5 p-4 bg-gray-800 rounded-lg border border-gray-700">
             <View className="flex-row items-center flex-1">
                 <Image
                     className="w-12 h-12 rounded-full"
@@ -89,19 +87,19 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
                         uri: item.image || 'https://via.placeholder.com/50x50?text=User'
                     }}
                 />
-                <Text className="text-sm font-bold ml-2.5 flex-1 text-gray-800">
+                <Text className="text-sm font-medium ml-3 flex-1 text-white">
                     {item.name} sent you a friend request!
                 </Text>
             </View>
 
-            <View className="flex-row space-x-2">
+            <View className="flex-row gap-3 ml-3">
                 <Pressable
                     onPress={() => rejectRequest(item._id)}
                     disabled={loading}
-                    className={`px-3 py-2 rounded-md border border-gray-300 ${loading ? 'opacity-50' : ''
+                    className={`px-3 py-2 rounded-md border border-gray-600 bg-gray-700 ${loading ? 'opacity-50' : ''
                         }`}
                 >
-                    <Text className="text-center text-gray-600 text-xs">Decline</Text>
+                    <Text className="text-center text-gray-300 text-xs">Decline</Text>
                 </Pressable>
 
                 <Pressable

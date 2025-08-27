@@ -45,7 +45,7 @@ const HomeScreen = () => {
   return (
     <View className="h-full" style={{ backgroundColor: "#000" }}>
       {/* Custom Header */}
-      <View className="bg-black pt-12 pb-4 px-4 border-b border-gray-600">
+      <View className="bg-black pt-12 pb-4 px-4 border-b border-gray-800">
         <View className="flex-row justify-between items-center">
           <Text className="font-bold text-base text-white">Gigga Chat</Text>
           <View className="flex-row items-center gap-2">

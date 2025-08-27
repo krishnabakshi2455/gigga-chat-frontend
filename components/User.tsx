@@ -95,7 +95,7 @@ const User: React.FC<UserProps> = ({ item }) => {
     }
 
     return (
-        <Pressable className="flex-row items-center my-2.5">
+        <Pressable className="flex-row items-center my-2.5 p-4 bg-gray-800 rounded-lg border border-gray-700">
             <View>
                 <Image
                     className="w-12 h-12 rounded-full"
@@ -109,27 +109,27 @@ const User: React.FC<UserProps> = ({ item }) => {
                 />
             </View>
 
-            <View className="ml-3 flex-1 ">
+            <View className="ml-3 flex-1">
                 <Text className="font-bold text-white">{item?.name}</Text>
-                <Text className="mt-1 text-gray-500">{item?.email}</Text>
+                <Text className="mt-1 text-gray-400">{item?.email}</Text>
             </View>
 
             {userFriends.includes(item._id) ? (
-                <Pressable className="bg-green-400 px-4 py-2.5 w-26 rounded-md">
-                    <Text className="text-center text-white">Friends</Text>
+                <Pressable className="bg-green-600 px-4 py-2.5 w-26 rounded-md border border-green-500">
+                    <Text className="text-center text-white text-xs font-medium">Friends</Text>
                 </Pressable>
             ) : requestSent || friendRequests.some((friend) => friend._id === item._id) ? (
-                <Pressable className="bg-gray-500 px-4 py-2.5 w-26 rounded-md">
-                    <Text className="text-center text-white text-xs">
+                <Pressable className="bg-gray-700 px-4 py-2.5 w-26 rounded-md border border-gray-600">
+                    <Text className="text-center text-gray-300 text-xs">
                         Request Sent
                     </Text>
                 </Pressable>
             ) : (
                 <Pressable
                     onPress={() => sendFriendRequest(userId, item._id)}
-                    className="bg-blue-600 px-4 py-2.5 w-26 rounded-md"
+                    className="bg-blue-600 px-4 py-2.5 w-26 rounded-md border border-blue-500"
                 >
-                    <Text className="text-center text-white text-xs">
+                    <Text className="text-center text-white text-xs font-medium">
                         Add Friend
                     </Text>
                 </Pressable>

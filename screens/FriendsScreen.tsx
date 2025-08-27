@@ -7,8 +7,6 @@ import { userIdAtom } from "../lib/global.store";
 import { ApiResponse, FriendRequestItem } from "../lib/types";
 import config from "../config";
 
-
-
 const FriendsScreen: React.FC = () => {
     const [userId] = useAtom(userIdAtom);
     const [friendRequests, setFriendRequests] = useState<FriendRequestItem[]>([]);
@@ -60,46 +58,74 @@ const FriendsScreen: React.FC = () => {
 
     if (!userId) {
         return (
-            <View className="flex-1 p-2.5 mx-3 justify-center items-center">
-                <Text className="text-center">Please log in to view friend requests</Text>
+            <View className="flex-1 bg-black">
+                {/* Header */}
+                <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
+                    <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
+                </View>
+
+                <View className="flex-1 p-2.5 mx-3 justify-center items-center">
+                    <Text className="text-white text-center">Please log in to view friend requests</Text>
+                </View>
             </View>
         );
     }
 
     if (loading) {
         return (
-            <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" />
-                <Text className="mt-2">Loading friend requests...</Text>
+            <View className="flex-1 bg-black">
+                {/* Header */}
+                <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
+                    <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
+                </View>
+
+                <View className="flex-1 justify-center items-center">
+                    <ActivityIndicator size="large" color="#ffffff" />
+                    <Text className="mt-2 text-white">Loading friend requests...</Text>
+                </View>
             </View>
         );
     }
 
     if (error) {
         return (
-            <View className="flex-1 p-2.5 mx-3 justify-center items-center">
-                <Text className="text-red-500 text-center">{error}</Text>
+            <View className="flex-1 bg-black">
+                {/* Header */}
+                <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
+                    <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
+                </View>
+
+                <View className="flex-1 p-2.5 mx-3 justify-center items-center">
+                    <Text className="text-red-400 text-center">{error}</Text>
+                </View>
             </View>
         );
     }
 
     return (
-        <View className="flex-1 p-2.5 mx-3">
-            {friendRequests.length > 0 ? (
-                <>
-                    <Text className="text-lg font-bold mb-4">Your Friend Requests!</Text>
-                    <FlatList
-                        data={friendRequests}
-                        renderItem={renderFriendRequest}
-                        keyExtractor={(item) => item._id}
-                        showsVerticalScrollIndicator={false}
-                    />
-                </>
-            ) : (
-                <Text className="text-center text-base text-gray-600 mt-5">
-                    No friend requests at the moment
-                </Text>
-            )}
+        <View className="flex-1 bg-black">
+            {/* Header */}
+            <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
+                <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
+            </View>
+
+            <View className="flex-1 p-2.5 mx-3">
+                {friendRequests.length > 0 ? (
+                    <>
+                        <Text className="text-white text-lg font-bold mb-4 mt-4">Your Friend Requests!</Text>
+                        <FlatList
+                            data={friendRequests}
+                            renderItem={renderFriendRequest}
+                            keyExtractor={(item) => item._id}
+                            showsVerticalScrollIndicator={false}
+                        />
+                    </>
+                ) : (
+                    <Text className="text-center text-base text-gray-400 mt-5">
+                        No friend requests at the moment
+                    </Text>
+                )}
+            </View>
         </View>
     );
 };
