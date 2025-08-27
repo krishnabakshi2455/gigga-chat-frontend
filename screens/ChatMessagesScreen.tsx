@@ -19,27 +19,9 @@ import { userIdAtom } from "../lib/global.store";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import config from "../config";
+import { Message, RecipientData, RouteParams } from "../lib/types";
 
-interface Message {
-    _id: string;
-    senderId: {
-        _id: string;
-    };
-    messageType: "text" | "image";
-    message?: string;
-    imageUrl?: string;
-    timeStamp: string;
-}
 
-interface RecipientData {
-    _id: string;
-    name: string;
-    image: string;
-}
-
-interface RouteParams {
-    recepientId: string;
-}
 
 const ChatMessagesScreen = () => {
     const [showEmojiSelector, setShowEmojiSelector] = useState(false);

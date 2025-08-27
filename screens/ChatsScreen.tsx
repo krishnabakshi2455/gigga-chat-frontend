@@ -5,14 +5,8 @@ import { userIdAtom } from "../lib/global.store";
 import { useNavigation } from "@react-navigation/native";
 import config from "../config";
 import UserChat from "../components/UserChat";
+import { AcceptedFriend } from "../lib/types";
 
-interface AcceptedFriend {
-    _id: string;
-    name: string;
-    email: string;
-    image: string;
-    // Add other properties as needed
-}
 
 const ChatsScreen: React.FC = () => {
     const [acceptedFriends, setAcceptedFriends] = useState<AcceptedFriend[]>([]);

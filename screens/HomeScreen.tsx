@@ -11,7 +11,7 @@ import { userIdAtom } from "../lib/global.store";
 import config from "../config";
 import User from "../components/User";
 const HomeScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [userId, setUserId] = useAtom(userIdAtom);
   const [users, setUsers] = useState([]);
 
