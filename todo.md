@@ -7,7 +7,7 @@ this exp://172.16.2.85:8081 causes the android login problem becaused google acc
 0. important - update the google claud console for ios
 
 
-* need to add backend end point for friends and message and chats
+* need to add backend end point for message and chats
 * check the naviagtion through out the application
 * change the ui of user display in home
 * add a notification system to send notification to the phone screen both lock and home screen

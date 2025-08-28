@@ -8,73 +8,66 @@ import { FriendRequestProps } from "../lib/types";
 
 const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, setFriendRequests }) => {
     const [userId] = useAtom(userIdAtom);
-    const [loading, setLoading] = useState<boolean>(false);
-    const navigation = useNavigation();
+    const [acceptLoading, setAcceptLoading] = useState(false);
+    const [rejectLoading, setRejectLoading] = useState(false);
+    const navigation = useNavigation<any>();
 
     const acceptRequest = async (friendRequestId: string): Promise<void> => {
-        if (loading) return;
+        if (acceptLoading) return;
 
         try {
-            setLoading(true);
+            setAcceptLoading(true);
 
-            const response = await fetch(
-                `${config.BACKEND_URL}/friend-request/accept`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        senderId: friendRequestId,
-                        recepientId: userId,
-                    }),
-                }
-            );
+            const response = await fetch(`${config.BACKEND_URL}/friend-request/accept`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    senderId: friendRequestId,
+                    recepientId: userId,
+                }),
+            });
 
             if (response.ok) {
                 setFriendRequests(
                     friendRequests.filter((request) => request._id !== friendRequestId)
                 );
-                navigation.navigate("Chats" as never);
+                navigation.navigate("Chats");
             } else {
-                throw new Error('Failed to accept friend request');
+                throw new Error("Failed to accept friend request");
             }
         } catch (err) {
             console.error("Error accepting the friend request:", err);
-            Alert.alert(
-                "Error",
-                "Failed to accept friend request. Please try again.",
-                [{ text: "OK" }]
-            );
+            Alert.alert("Error", "Failed to accept friend request. Please try again.", [{ text: "OK" }]);
         } finally {
-            setLoading(false);
+            setAcceptLoading(false);
         }
     };
 
     const rejectRequest = async (friendRequestId: string): Promise<void> => {
-        if (loading) return;
+        if (rejectLoading) return;
 
         try {
-            setLoading(true);
+            setRejectLoading(true);
 
-            // Remove from local state immediately for better UX
-            setFriendRequests(
-                friendRequests.filter((request) => request._id !== friendRequestId)
-            );
+            const response = await fetch(`${config.BACKEND_URL}/friend-request/reject`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ senderId: friendRequestId, recepientId: userId }),
+            });
 
-            // Optional: Make API call to reject on backend
-            // const response = await fetch("http://localhost:8000/friend-request/reject", {
-            //   method: "POST",
-            //   headers: { "Content-Type": "application/json" },
-            //   body: JSON.stringify({ senderId: friendRequestId, recepientId: userId })
-            // });
-
+            if (response.ok) {
+                setFriendRequests(
+                    friendRequests.filter((request) => request._id !== friendRequestId)
+                );
+                navigation.navigate("Chats");
+            } else {
+                throw new Error("Failed to reject friend request");
+            }
         } catch (err) {
             console.error("Error rejecting the friend request:", err);
-            // Restore the request if rejection fails
-            // You might want to refetch the requests here
+            Alert.alert("Error", "Failed to reject friend request. Please try again.", [{ text: "OK" }]);
         } finally {
-            setLoading(false);
+            setRejectLoading(false);
         }
     };
 
@@ -84,7 +77,7 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
                 <Image
                     className="w-12 h-12 rounded-full"
                     source={{
-                        uri: item.image || 'https://via.placeholder.com/50x50?text=User'
+                        uri: item.image || "https://via.placeholder.com/50x50?text=User",
                     }}
                 />
                 <Text className="text-sm font-medium ml-3 flex-1 text-white">
@@ -95,21 +88,23 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
             <View className="flex-row gap-3 ml-3">
                 <Pressable
                     onPress={() => rejectRequest(item._id)}
-                    disabled={loading}
-                    className={`px-3 py-2 rounded-md border border-gray-600 bg-gray-700 ${loading ? 'opacity-50' : ''
+                    disabled={rejectLoading}
+                    className={`px-3 py-2 rounded-md border border-gray-600 bg-gray-700 ${rejectLoading ? "opacity-50" : ""
                         }`}
                 >
-                    <Text className="text-center text-gray-300 text-xs">Decline</Text>
+                    <Text className="text-center text-gray-300 text-xs">
+                        {rejectLoading ? "Declining..." : "Decline"}
+                    </Text>
                 </Pressable>
 
                 <Pressable
                     onPress={() => acceptRequest(item._id)}
-                    disabled={loading}
-                    className={`bg-blue-600 px-3 py-2 rounded-md ${loading ? 'opacity-50' : ''
+                    disabled={acceptLoading}
+                    className={`bg-blue-600 px-3 py-2 rounded-md ${acceptLoading ? "opacity-50" : ""
                         }`}
                 >
                     <Text className="text-center text-white text-xs font-medium">
-                        {loading ? 'Accepting...' : 'Accept'}
+                        {acceptLoading ? "Accepting..." : "Accept"}
                     </Text>
                 </Pressable>
             </View>
