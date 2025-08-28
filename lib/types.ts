@@ -44,3 +44,18 @@ export interface FriendRequestProps {
     friendRequests: FriendRequestItem[];
     setFriendRequests: React.Dispatch<React.SetStateAction<FriendRequestItem[]>>;
 }
+
+export interface UserItem {
+    _id: string;
+    name: string;
+    email: string;
+    image: string;
+}
+
+export interface FriendRequest {
+    _id: string;
+}
+
+export interface UserProps {
+    item: UserItem;
+}

@@ -3,71 +3,51 @@ import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { userIdAtom } from "../lib/global.store";
 import config from "../config";
-
-interface UserItem {
-    _id: string;
-    name: string;
-    email: string;
-    image: string;
-}
-
-interface FriendRequest {
-    _id: string;
-    // Add other properties as needed
-}
-
-interface UserProps {
-    item: UserItem;
-}
+import { FriendRequest, UserProps } from "../lib/types";
+// Remove the friend_request_atom import and usage since we only want to show notifications for incoming requests
 
 const User: React.FC<UserProps> = ({ item }) => {
     const [userId] = useAtom(userIdAtom);
-    const [requestSent, setRequestSent] = useState(false);
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
     const [userFriends, setUserFriends] = useState<string[]>([]);
 
-    useEffect(() => {
-        const fetchFriendRequests = async () => {
-            if (!userId) return;
-
-            try {
-                const response = await fetch(
-                    `${config.BACKEND_URL}/friend-requests/sent/${userId}`
-                );
-
-                const data = await response.json();
-                if (response.ok) {
-                    setFriendRequests(data);
-                } else {
-                    console.log("error", response.status);
-                }
-            } catch (error) {
-                console.log("error", error);
+    const fetchFriendRequests = async () => {
+        if (!userId) return;
+        try {
+            const response = await fetch(
+                `${config.BACKEND_URL}/friend-requests/sent/${userId}`
+            );
+            const data = await response.json();
+            if (response.ok) {
+                setFriendRequests(data);
+            } else {
+                console.log("error in else", response.status);
             }
-        };
+        } catch (error) {
+            console.log("error in catch", error);
+        }
+    };
 
+    useEffect(() => {
         fetchFriendRequests();
     }, [userId]);
 
-    useEffect(() => {
-        const fetchUserFriends = async () => {
-            if (!userId) return;
-
-            try {
-                const response = await fetch(`${config.BACKEND_URL}/friends/${userId}`);
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    setUserFriends(data);
-                } else {
-                    console.log("error retrieving user friends", response.status);
-                }
-            } catch (error) {
-                console.log("Error message", error);
+    const fetchUserFriends = async () => {
+        if (!userId) return;
+        try {
+            const response = await fetch(`${config.BACKEND_URL}/friends/${userId}`);
+            const data = await response.json();
+            if (response.ok) {
+                setUserFriends(data[0].sentFriendRequests);
+            } else {
+                console.log("error retrieving user friends", response.status);
             }
-        };
+        } catch (error) {
+            console.log("Error message", error);
+        }
+    };
 
+    useEffect(() => {
         fetchUserFriends();
     }, [userId]);
 
@@ -82,14 +62,13 @@ const User: React.FC<UserProps> = ({ item }) => {
             });
 
             if (response.ok) {
-                setRequestSent(true);
+                await fetchFriendRequests();
             }
         } catch (error) {
             console.log("error message", error);
         }
     };
 
-    // Early return if userId is not available
     if (!userId) {
         return null;
     }
@@ -118,7 +97,7 @@ const User: React.FC<UserProps> = ({ item }) => {
                 <Pressable className="bg-green-600 px-4 py-2.5 w-26 rounded-md border border-green-500">
                     <Text className="text-center text-white text-xs font-medium">Friends</Text>
                 </Pressable>
-            ) : requestSent || friendRequests.some((friend) => friend._id === item._id) ? (
+            ) : friendRequests.some((friend) => friend._id === item._id) ? (
                 <Pressable className="bg-gray-700 px-4 py-2.5 w-26 rounded-md border border-gray-600">
                     <Text className="text-center text-gray-300 text-xs">
                         Request Sent
