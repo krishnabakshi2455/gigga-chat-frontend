@@ -1,4 +1,4 @@
-import { Text, View, TouchableOpacity } from "react-native";
+import { Text, View, TouchableOpacity, FlatList, Image } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,6 @@ import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import { userIdAtom } from "../lib/global.store";
 import config from "../config";
-import User from "../components/User";
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -51,10 +50,6 @@ const HomeScreen = () => {
 
         // Check if there are any NEW unread requests
         const hasUnreadRequests = currentRequestIds.some((id: string) => !readIds.includes(id));
-
-        // console.log("Current request IDs:", currentRequestIds);
-        // console.log("Read IDs:", readIds);
-        // console.log("Has unread requests:", hasUnreadRequests);
 
         setHasIncomingRequests(hasUnreadRequests);
         return hasUnreadRequests;
@@ -111,9 +106,6 @@ const HomeScreen = () => {
 
         // Save updated read IDs
         await saveReadFriendRequestIds(updatedReadIds);
-
-        // console.log("Marked as read:", currentRequestIds);
-        // console.log("All read IDs:", updatedReadIds);
       }
     } catch (error) {
       console.log("Error marking requests as read:", error);
@@ -122,6 +114,62 @@ const HomeScreen = () => {
     setHasIncomingRequests(false);
     navigation.navigate("Friends");
   };
+
+  // User item renderer for FlatList
+  const renderUserItem = ({ item, index }: { item: any; index: number }) => (
+    <TouchableOpacity
+      key={index}
+      className="flex-row items-center py-3 px-4 border-b border-gray-800"
+      style={{ backgroundColor: '#111' }}
+    >
+      {/* User Avatar */}
+      <View className="mr-4">
+        {item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            className="w-12 h-12 rounded-full"
+            style={{ backgroundColor: '#333' }}
+          />
+        ) : (
+          <View className="w-12 h-12 rounded-full bg-gray-600 items-center justify-center">
+            <Text className="text-white text-lg font-bold">
+              {item.name ? item.name.charAt(0).toUpperCase() : item.username?.charAt(0).toUpperCase() || 'U'}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* User Info */}
+      <View className="flex-1">
+        <Text className="text-white text-base font-semibold">
+          {item.name || item.username || 'Unknown User'}
+        </Text>
+        {item.email && (
+          <Text className="text-gray-400 text-sm mt-1">
+            {item.email}
+          </Text>
+        )}
+        {item.status && (
+          <View className="flex-row items-center mt-1">
+            <View
+              className="w-2 h-2 rounded-full mr-2"
+              style={{
+                backgroundColor: item.status === 'online' ? '#22c55e' : '#6b7280'
+              }}
+            />
+            <Text className="text-gray-400 text-xs capitalize">
+              {item.status || 'offline'}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Action Button */}
+      <TouchableOpacity className="ml-4 bg-blue-600 px-4 py-2 rounded-full">
+        <Text className="text-white text-sm font-medium">Add Friend</Text>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
   return (
     <View className="h-full" style={{ backgroundColor: "#000" }}>
@@ -164,11 +212,23 @@ const HomeScreen = () => {
         </View>
       </View>
 
-      {/* Content */}
-      <View className="p-3 flex-1">
-        {users.map((item, index) => (
-          <User key={index} item={item} />
-        ))}
+      {/* Content - User List */}
+      <View className="flex-1">
+        {users.length > 0 ? (
+          <FlatList
+            data={users}
+            renderItem={renderUserItem}
+            keyExtractor={(item, index) => item.id?.toString() || item._id?.toString() || index.toString()}
+            showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: '#000' }}
+          />
+        ) : (
+          <View className="flex-1 items-center justify-center">
+            <Ionicons name="people-outline" size={48} color="#6b7280" />
+            <Text className="text-gray-400 text-base mt-4">No users found</Text>
+            <Text className="text-gray-500 text-sm mt-2">Check back later for new users</Text>
+          </View>
+        )}
       </View>
     </View>
   );
