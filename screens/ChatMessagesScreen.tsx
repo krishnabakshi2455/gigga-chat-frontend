@@ -15,7 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Entypo } from "@expo/vector-icons";
 import EmojiSelector from "react-native-emoji-selector";
 import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/global.store";
+import { userIdAtom } from "../lib/store/userId.store";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import config from "../config";

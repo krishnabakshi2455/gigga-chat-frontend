@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useAtom } from 'jotai';
 import axios, { AxiosResponse } from "axios";
 import FriendRequest from "../components/FriendRequest";
-import { userIdAtom } from "../lib/global.store";
+import { userIdAtom } from "../lib/store/userId.store";
 import { ApiResponse, FriendRequestItem } from "../lib/types";
 import config from "../config";
 

@@ -1,7 +1,7 @@
 import { Text, View, ScrollView, Pressable } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/global.store";
+import { userIdAtom } from "../lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
 import config from "../config";
 import UserChat from "../components/UserChat";

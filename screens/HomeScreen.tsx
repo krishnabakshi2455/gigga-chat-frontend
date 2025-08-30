@@ -7,8 +7,8 @@ import { useAtom } from "jotai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
-import { userIdAtom } from "../lib/global.store";
 import config from "../config";
+import { userIdAtom } from "../lib/store/userId.store";
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();

@@ -1,9 +1,9 @@
 import { Text, View, Pressable, Image } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/global.store";
 import config from "../config";
 import { FriendRequest, UserProps } from "../lib/types";
+import { userIdAtom } from "../lib/store/userId.store";
 // Remove the friend_request_atom import and usage since we only want to show notifications for incoming requests
 
 const User: React.FC<UserProps> = ({ item }) => {

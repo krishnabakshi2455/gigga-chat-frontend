@@ -1,4 +1,3 @@
-// store.ts
 import { atom } from "jotai";
 
 
