@@ -66,7 +66,7 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
             hour: "numeric",
             minute: "numeric"
         };
-        return new Date(time).toLocaleString("en-US", options);
+        return new Date(time).toLocaleString("en-IN", options);
     };
 
     if (!userId) {
@@ -80,31 +80,66 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
                     recepientId: item._id,
                 })
             }
-            className="flex-row items-center gap-2.5 border-b border-gray-300 p-2.5"
+            className="flex-row items-center py-4 px-5 border-b border-gray-800"
+            style={{
+                backgroundColor: '#0a0a0a',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 1,
+            }}
         >
-            <Image
-                className="w-12 h-12 rounded-full"
-                source={{ uri: item?.image }}
-                style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 25,
-                }}
-            />
+            {/* Avatar with online indicator */}
+            <View className="relative mr-4">
+                <Image
+                    className="w-14 h-14 rounded-full border-2 border-gray-700"
+                    source={{ uri: item?.image }}
+                    style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                    }}
+                />
+                {/* Online status indicator */}
+                <View
+                    className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2"
+                    style={{ borderColor: '#0a0a0a' }}
+                />
+            </View>
 
-            <View className="flex-1">
-                <Text className="text-sm font-medium">{item?.name}</Text>
-                {lastMessage && (
-                    <Text className="mt-1 text-gray-500 font-medium text-xs">
+            {/* Message content */}
+            <View className="flex-1 mr-3">
+                <View className="flex-row items-center justify-between mb-1">
+                    <Text className="text-base font-semibold text-white" numberOfLines={1}>
+                        {item?.name}
+                    </Text>
+                </View>
+
+                {lastMessage ? (
+                    <Text className="text-sm text-gray-400 leading-5" numberOfLines={2}>
                         {lastMessage?.message}
+                    </Text>
+                ) : (
+                    <Text className="text-sm text-gray-500 italic">
+                        No messages yet
                     </Text>
                 )}
             </View>
 
-            <View>
-                <Text className="text-[11px] font-normal text-gray-600">
+            {/* Time and notification */}
+            <View className="items-end justify-between" style={{ minHeight: 56 }}>
+                <Text className="text-xs text-gray-500 mb-2">
                     {lastMessage && formatTime(lastMessage?.timeStamp)}
                 </Text>
+
+                {/* Unread message count badge */}
+                {messages.length > 0 && (
+                    <View className="bg-blue-600 rounded-full min-w-5 h-5 items-center justify-center px-1.5">
+                        <Text className="text-white text-xs font-bold">
+                            {messages.length > 99 ? '99+' : messages.length}
+                        </Text>
+                    </View>
+                )}
             </View>
         </Pressable>
     );

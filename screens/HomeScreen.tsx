@@ -1,5 +1,5 @@
 import { Text, View, TouchableOpacity, FlatList, Image } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -9,12 +9,49 @@ import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "../config";
 import { userIdAtom } from "../lib/store/userId.store";
+import User from "../components/User";
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
   const [userId, setUserId] = useAtom(userIdAtom);
   const [users, setUsers] = useState([]);
   const [hasIncomingRequests, setHasIncomingRequests] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: "",
+      headerLeft: () => (
+        <Text style={{ fontSize: 16, fontWeight: "bold" }} className="text-white text-base">Gigga Chat</Text>
+      ),
+      headerRight: () => (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Ionicons onPress={() => navigation.navigate("Chats")} name="chatbox-ellipses-outline" size={24} color="blue" />
+          <TouchableOpacity onPress={handleFriendsPress}>
+            <View style={{ position: 'relative' }}>
+              <MaterialIcons
+                name="people-outline"
+                size={24}
+                color="blue"
+              />
+              {hasIncomingRequests && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#ef4444',
+                  }}
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [hasIncomingRequests]);
 
   // Function to get read friend request IDs from AsyncStorage
   const getReadFriendRequestIds = async (): Promise<string[]> => {
@@ -115,120 +152,13 @@ const HomeScreen = () => {
     navigation.navigate("Friends");
   };
 
-  // User item renderer for FlatList
-  const renderUserItem = ({ item, index }: { item: any; index: number }) => (
-    <TouchableOpacity
-      key={index}
-      className="flex-row items-center py-3 px-4 border-b border-gray-800"
-      style={{ backgroundColor: '#111' }}
-    >
-      {/* User Avatar */}
-      <View className="mr-4">
-        {item.image ? (
-          <Image
-            source={{ uri: item.image }}
-            className="w-12 h-12 rounded-full"
-            style={{ backgroundColor: '#333' }}
-          />
-        ) : (
-          <View className="w-12 h-12 rounded-full bg-gray-600 items-center justify-center">
-            <Text className="text-white text-lg font-bold">
-              {item.name ? item.name.charAt(0).toUpperCase() : item.username?.charAt(0).toUpperCase() || 'U'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* User Info */}
-      <View className="flex-1">
-        <Text className="text-white text-base font-semibold">
-          {item.name || item.username || 'Unknown User'}
-        </Text>
-        {item.email && (
-          <Text className="text-gray-400 text-sm mt-1">
-            {item.email}
-          </Text>
-        )}
-        {item.status && (
-          <View className="flex-row items-center mt-1">
-            <View
-              className="w-2 h-2 rounded-full mr-2"
-              style={{
-                backgroundColor: item.status === 'online' ? '#22c55e' : '#6b7280'
-              }}
-            />
-            <Text className="text-gray-400 text-xs capitalize">
-              {item.status || 'offline'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Action Button */}
-      <TouchableOpacity className="ml-4 bg-blue-600 px-4 py-2 rounded-full">
-        <Text className="text-white text-sm font-medium">Add Friend</Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-
   return (
     <View className="h-full" style={{ backgroundColor: "#000" }}>
-      {/* Custom Header */}
-      <View className="bg-black pt-12 pb-4 px-4 border-b border-gray-800">
-        <View className="flex-row justify-between items-center">
-          <Text className="font-bold text-base text-white">Gigga Chat</Text>
-          <View className="flex-row items-center gap-2">
-            <Ionicons
-              onPress={() => navigation.navigate("Chats")}
-              name="chatbox-ellipses-outline"
-              size={24}
-              color="white"
-            />
-            {/* Friends icon with notification badge */}
-            <TouchableOpacity onPress={handleFriendsPress}>
-              <View style={{ position: 'relative' }}>
-                <MaterialIcons
-                  name="people-outline"
-                  size={24}
-                  color="white"
-                />
-                {/* Red notification dot */}
-                {hasIncomingRequests && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -2,
-                      right: -2,
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: '#ef4444', // red-500
-                    }}
-                  />
-                )}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Content - User List */}
-      <View className="flex-1">
-        {users.length > 0 ? (
-          <FlatList
-            data={users}
-            renderItem={renderUserItem}
-            keyExtractor={(item, index) => item.id?.toString() || item._id?.toString() || index.toString()}
-            showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: '#000' }}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <Ionicons name="people-outline" size={48} color="#6b7280" />
-            <Text className="text-gray-400 text-base mt-4">No users found</Text>
-            <Text className="text-gray-500 text-sm mt-2">Check back later for new users</Text>
-          </View>
-        )}
+      {/* Content */}
+      <View className=" flex-1">
+        {users.map((item, index) => (
+          <User key={index} item={item} />
+        ))}
       </View>
     </View>
   );

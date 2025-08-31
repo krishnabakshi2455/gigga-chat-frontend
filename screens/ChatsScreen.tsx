@@ -11,7 +11,7 @@ import { AcceptedFriend } from "../lib/types";
 const ChatsScreen: React.FC = () => {
     const [acceptedFriends, setAcceptedFriends] = useState<AcceptedFriend[]>([]);
     const [userId] = useAtom(userIdAtom);
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
 
     useEffect(() => {
         const acceptedFriendsList = async () => {
@@ -36,19 +36,19 @@ const ChatsScreen: React.FC = () => {
         acceptedFriendsList();
     }, [userId]);
 
-    console.log("friends", acceptedFriends);
+    // console.log("friends", acceptedFriends);
 
     if (!userId) {
         return (
             <View className="flex-1 justify-center items-center">
-                <Text className="text-gray-500">Loading...</Text>
+                <Text className="text-white">Loading...</Text>
             </View>
         );
     }
 
     return (
         <ScrollView
-            className="flex-1"
+            className="flex-1 bg-black "
             showsVerticalScrollIndicator={false}
         >
             <View className="p-0">
@@ -57,8 +57,8 @@ const ChatsScreen: React.FC = () => {
                         <UserChat key={item._id || index} item={item} />
                     ))
                 ) : (
-                    <View className="flex-1 justify-center items-center py-20">
-                        <Text className="text-gray-500 text-center">
+                    <View className="flex-1 justify-center items-center py-20 ">
+                            <Text className="text-white text-center border-b border-gray-800">
                             No chats yet{'\n'}Start a conversation with your friends!
                         </Text>
                     </View>

@@ -59,10 +59,6 @@ const FriendsScreen: React.FC = () => {
     if (!userId) {
         return (
             <View className="flex-1 bg-black">
-                {/* Header */}
-                <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
-                    <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
-                </View>
 
                 <View className="flex-1 p-2.5 mx-3 justify-center items-center">
                     <Text className="text-white text-center">Please log in to view friend requests</Text>
@@ -74,10 +70,6 @@ const FriendsScreen: React.FC = () => {
     if (loading) {
         return (
             <View className="flex-1 bg-black">
-                {/* Header */}
-                <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
-                    <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
-                </View>
 
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#ffffff" />
@@ -90,10 +82,6 @@ const FriendsScreen: React.FC = () => {
     if (error) {
         return (
             <View className="flex-1 bg-black">
-                {/* Header */}
-                <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
-                    <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
-                </View>
 
                 <View className="flex-1 p-2.5 mx-3 justify-center items-center">
                     <Text className="text-red-400 text-center">{error}</Text>
@@ -104,10 +92,6 @@ const FriendsScreen: React.FC = () => {
 
     return (
         <View className="flex-1 bg-black">
-            {/* Header */}
-            <View className="bg-black pt-12 pb-4 px-6 border-b border-gray-800">
-                <Text className="text-white text-2xl font-bold text-center">Gigga-chat</Text>
-            </View>
 
             <View className="flex-1 p-2.5 mx-3">
                 {friendRequests.length > 0 ? (

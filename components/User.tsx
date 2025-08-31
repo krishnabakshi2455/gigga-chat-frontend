@@ -38,7 +38,7 @@ const User: React.FC<UserProps> = ({ item }) => {
             const response = await fetch(`${config.BACKEND_URL}/friends/${userId}`);
             const data = await response.json();
             if (response.ok) {
-                setUserFriends(data[0].sentFriendRequests);
+                setUserFriends(data);
             } else {
                 console.log("error retrieving user friends", response.status);
             }
@@ -74,8 +74,12 @@ const User: React.FC<UserProps> = ({ item }) => {
     }
 
     return (
-        <Pressable className="flex-row items-center my-2.5 p-4 bg-gray-800 rounded-lg border border-gray-700">
-            <View>
+        <Pressable
+            className="flex-row items-center py-3 px-4 border-b border-gray-800"
+            style={{ backgroundColor: '#111' }}
+        >
+            {/* User Avatar */}
+            <View className="mr-4">
                 <Image
                     className="w-12 h-12 rounded-full"
                     source={{ uri: item.image }}
@@ -88,27 +92,35 @@ const User: React.FC<UserProps> = ({ item }) => {
                 />
             </View>
 
-            <View className="ml-3 flex-1">
-                <Text className="font-bold text-white">{item?.name}</Text>
-                <Text className="mt-1 text-gray-400">{item?.email}</Text>
+            {/* User Info */}
+            <View className="flex-1">
+                <Text className="text-white text-base font-semibold">
+                    {item?.name || 'Unknown User'}
+                </Text>
+                {item.email && (
+                    <Text className="text-gray-400 text-sm mt-1">
+                        {item.email}
+                    </Text>
+                )}
             </View>
 
+            {/* Action Button */}
             {userFriends.includes(item._id) ? (
-                <Pressable className="bg-green-600 px-4 py-2.5 w-26 rounded-md border border-green-500">
-                    <Text className="text-center text-white text-xs font-medium">Friends</Text>
+                <Pressable className="ml-4 bg-gray-700 px-4 py-2 rounded-full">
+                    <Text className="text-white text-sm font-medium">Friend</Text>
                 </Pressable>
             ) : friendRequests.some((friend) => friend._id === item._id) ? (
-                <Pressable className="bg-gray-700 px-4 py-2.5 w-26 rounded-md border border-gray-600">
-                    <Text className="text-center text-gray-300 text-xs">
+                <Pressable className="ml-4 bg-gray-700 px-4 py-2 rounded-full">
+                    <Text className="text-gray-300 text-sm">
                         Request Sent
                     </Text>
                 </Pressable>
             ) : (
                 <Pressable
                     onPress={() => sendFriendRequest(userId, item._id)}
-                    className="bg-blue-600 px-4 py-2.5 w-26 rounded-md border border-blue-500"
+                    className="ml-4 bg-blue-600 px-4 py-2 rounded-full"
                 >
-                    <Text className="text-center text-white text-xs font-medium">
+                    <Text className="text-white text-sm font-medium">
                         Add Friend
                     </Text>
                 </Pressable>
