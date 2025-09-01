@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "yarn react-native run-android",
+    "ios": "yarn react-native run-ios",
+    "start": "yarn react-native start",
+    "build-android": "yarn react-native build-android",
     "web": "expo start --web"
   },
   "dependencies": {
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "^20.0.1",
     "@types/react": "^19.1.9",
     "prettier-plugin-tailwindcss": "^0.5.11",
     "tailwindcss": "^3.4.17",
