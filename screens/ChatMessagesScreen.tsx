@@ -6,6 +6,9 @@ import {
     TextInput,
     Pressable,
     Image,
+    Alert,
+    ActionSheetIOS,
+    Platform,
 } from "react-native";
 import React, { useState, useLayoutEffect, useEffect, useRef } from "react";
 import { Feather } from "@expo/vector-icons";
@@ -21,8 +24,6 @@ import * as ImagePicker from "expo-image-picker";
 import config from "../config";
 import { Message, RecipientData, RouteParams } from "../lib/types";
 
-
-
 const ChatMessagesScreen = () => {
     const [showEmojiSelector, setShowEmojiSelector] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -37,9 +38,39 @@ const ChatMessagesScreen = () => {
 
     const scrollViewRef = useRef<ScrollView>(null);
 
+    // Request permissions when component mounts
     useEffect(() => {
+        requestPermissions();
         scrollToBottom();
     }, []);
+
+    const requestPermissions = async () => {
+        try {
+            // Request media library permissions
+            const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            // Request camera permissions
+            const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+
+            if (mediaLibraryStatus !== 'granted') {
+                Alert.alert(
+                    'Permission Required',
+                    'Please grant permission to access your photo library to share images.',
+                    [{ text: 'OK' }]
+                );
+            }
+
+            if (cameraStatus !== 'granted') {
+                Alert.alert(
+                    'Permission Required',
+                    'Please grant camera permission to take photos.',
+                    [{ text: 'OK' }]
+                );
+            }
+        } catch (error) {
+            console.log('Error requesting permissions:', error);
+        }
+    };
 
     const scrollToBottom = () => {
         if (scrollViewRef.current) {
@@ -128,6 +159,134 @@ const ChatMessagesScreen = () => {
         }
     };
 
+    // Improved image picker with options
+    const showImagePickerOptions = () => {
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: ['Cancel', 'Take Photo', 'Choose from Library'],
+                    cancelButtonIndex: 0,
+                },
+                (buttonIndex) => {
+                    if (buttonIndex === 1) {
+                        openCamera();
+                    } else if (buttonIndex === 2) {
+                        pickImageFromLibrary();
+                    }
+                }
+            );
+        } else {
+            Alert.alert(
+                'Select Image',
+                'Choose an option',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Take Photo', onPress: openCamera },
+                    { text: 'Choose from Library', onPress: pickImageFromLibrary },
+                ]
+            );
+        }
+    };
+
+    const openCamera = async () => {
+        try {
+            // Check permissions first
+            const { status } = await ImagePicker.getCameraPermissionsAsync();
+            if (status !== 'granted') {
+                const { status: newStatus } = await ImagePicker.requestCameraPermissionsAsync();
+                if (newStatus !== 'granted') {
+                    Alert.alert('Permission Required', 'Camera permission is required to take photos.');
+                    return;
+                }
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8, // Reduced quality for faster upload
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                handleSend("image", result.assets[0].uri);
+            }
+        } catch (error) {
+            console.log('Error opening camera:', error);
+            Alert.alert('Error', 'Failed to open camera. Please try again.');
+        }
+    };
+
+    const pickImageFromLibrary = async () => {
+        try {
+            // Check permissions first
+            const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                const { status: newStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (newStatus !== 'granted') {
+                    Alert.alert('Permission Required', 'Media library permission is required to select photos.');
+                    return;
+                }
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8, // Reduced quality for faster upload
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                handleSend("image", result.assets[0].uri);
+            }
+        } catch (error) {
+            console.log('Error picking image:', error);
+            Alert.alert('Error', 'Failed to select image. Please try again.');
+        }
+    };
+
+    const handleSelectMessage = (message: Message) => {
+        const isSelected = selectedMessages.includes(message._id);
+
+        if (isSelected) {
+            setSelectedMessages((previousMessages) =>
+                previousMessages.filter((id) => id !== message._id)
+            );
+        } else {
+            setSelectedMessages((previousMessages) => [
+                ...previousMessages,
+                message._id,
+            ]);
+        }
+    };
+
+    const deleteMessages = async (messageIds: string[]) => {
+        try {
+            const response = await fetch(`${config.BACKEND_URL}/deleteMessages`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ messages: messageIds }),
+            });
+
+            if (response.ok) {
+                setSelectedMessages((prevSelectedMessages) =>
+                    prevSelectedMessages.filter((id) => !messageIds.includes(id))
+                );
+                fetchMessages();
+            } else {
+                console.log("error deleting messages", response.status);
+            }
+        } catch (error) {
+            console.log("error deleting messages", error);
+        }
+    };
+
+    const formatTime = (time: string) => {
+        const options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "numeric" };
+        return new Date(time).toLocaleString("en-US", options);
+    };
+
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitle: "",
@@ -176,62 +335,6 @@ const ChatMessagesScreen = () => {
                 ) : null,
         });
     }, [recepientData, selectedMessages, navigation]);
-
-    const deleteMessages = async (messageIds: string[]) => {
-        try {
-            const response = await fetch(`${config.BACKEND_URL}/deleteMessages`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ messages: messageIds }),
-            });
-
-            if (response.ok) {
-                setSelectedMessages((prevSelectedMessages) =>
-                    prevSelectedMessages.filter((id) => !messageIds.includes(id))
-                );
-                fetchMessages();
-            } else {
-                console.log("error deleting messages", response.status);
-            }
-        } catch (error) {
-            console.log("error deleting messages", error);
-        }
-    };
-
-    const formatTime = (time: string) => {
-        const options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "numeric" };
-        return new Date(time).toLocaleString("en-US", options);
-    };
-
-    const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.All,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 1,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-            handleSend("image", result.assets[0].uri);
-        }
-    };
-
-    const handleSelectMessage = (message: Message) => {
-        const isSelected = selectedMessages.includes(message._id);
-
-        if (isSelected) {
-            setSelectedMessages((previousMessages) =>
-                previousMessages.filter((id) => id !== message._id)
-            );
-        } else {
-            setSelectedMessages((previousMessages) => [
-                ...previousMessages,
-                message._id,
-            ]);
-        }
-    };
 
     if (!userId) {
         return null;
@@ -319,7 +422,12 @@ const ChatMessagesScreen = () => {
                 />
 
                 <View className="flex-row items-center gap-2 mx-2">
-                    <Entypo onPress={pickImage} name="camera" size={24} color="gray" />
+                    <Entypo
+                        onPress={showImagePickerOptions}
+                        name="camera"
+                        size={24}
+                        color="gray"
+                    />
                     <Feather name="mic" size={24} color="gray" />
                 </View>
 

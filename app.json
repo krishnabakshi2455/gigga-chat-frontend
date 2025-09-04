@@ -13,6 +13,17 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them.",
+          "cameraPermission": "The app accesses your camera to let you take photos.",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+        }
+      ]
+    ],
+    
     "scheme": "giggachat",
     "ios": {
       "supportsTablet": true,

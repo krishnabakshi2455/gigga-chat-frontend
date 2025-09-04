@@ -57,7 +57,7 @@ const Stacknavigator = () => {
                         },
                     }}
                 />
-                {/* <Stack.Screen
+                <Stack.Screen
                     name="Messages"
                     component={ChatMessagesScreen}
                     options={{
@@ -70,7 +70,7 @@ const Stacknavigator = () => {
                             color: '#ffffff', 
                         },
                     }}
-                /> */}
+                />
             </Stack.Navigator>
         </NavigationContainer>
     )
