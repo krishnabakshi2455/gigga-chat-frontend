@@ -23,7 +23,6 @@
         }
       ]
     ],
-    
     "scheme": "giggachat",
     "ios": {
       "supportsTablet": true,
@@ -38,11 +37,14 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.krishnabakshi.giggachat"
+      "package": "com.krishnabakshi.giggachat",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "extra": {
       "eas": {
-        "projectId": "4931f919-a3ac-4696-9584-92891116929f"
+        "projectId": "a6c5b745-4c7a-4673-a5ff-0fbde83b2b79"
       }
     },
     "web": {
