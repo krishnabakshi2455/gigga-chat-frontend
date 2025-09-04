@@ -42,13 +42,14 @@
         "android.permission.RECORD_AUDIO"
       ]
     },
-    
-
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "extra": {}
-
+    "extra": {
+      "eas": {
+        "projectId": "1643352d-4ad2-48bd-9516-6269d954ac8c"
+      }
+    }
   }
 }
