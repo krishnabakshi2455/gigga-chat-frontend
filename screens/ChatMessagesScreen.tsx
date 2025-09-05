@@ -9,6 +9,8 @@ import {
     Alert,
     ActionSheetIOS,
     Platform,
+    Keyboard,
+    TouchableWithoutFeedback
 } from "react-native";
 import React, { useState, useLayoutEffect, useEffect, useRef } from "react";
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,13 +38,30 @@ const ChatMessagesScreen = () => {
     const { recepientId } = route.params as RouteParams;
     const [message, setMessage] = useState("");
     const [userId] = useAtom(userIdAtom);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const scrollViewRef = useRef<ScrollView>(null);
+    const textInputRef = useRef<TextInput>(null);
 
     // Request permissions when component mounts
     useEffect(() => {
         requestPermissions();
         scrollToBottom();
+
+        // Keyboard event listeners
+        const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+            setShowEmojiSelector(false); // Hide emoji selector when keyboard appears
+            scrollToBottom();
+        });
+        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
     }, []);
 
     const requestPermissions = async () => {
@@ -75,7 +94,9 @@ const ChatMessagesScreen = () => {
 
     const scrollToBottom = () => {
         if (scrollViewRef.current) {
-            scrollViewRef.current.scrollToEnd({ animated: false });
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
         }
     };
 
@@ -84,7 +105,15 @@ const ChatMessagesScreen = () => {
     };
 
     const handleEmojiPress = () => {
-        setShowEmojiSelector(!showEmojiSelector);
+        if (showEmojiSelector) {
+            // If emoji selector is showing, hide it and focus on text input
+            setShowEmojiSelector(false);
+            setTimeout(() => textInputRef.current?.focus(), 100);
+        } else {
+            // If emoji selector is not showing, hide keyboard and show emoji selector
+            Keyboard.dismiss();
+            setShowEmojiSelector(true);
+        }
     };
 
     const fetchMessages = async () => {
@@ -127,7 +156,6 @@ const ChatMessagesScreen = () => {
                     const recipient = data.find((friend: any) => friend._id === recepientId);
                     if (recipient) {
                         setRecepientData(recipient);
-                        console.log("Recipient data found:", recipient);
                     } else {
                         console.log("Recipient not found in accepted friends");
                     }
@@ -168,6 +196,7 @@ const ChatMessagesScreen = () => {
             if (response.ok) {
                 setMessage("");
                 setSelectedImage("");
+                setShowEmojiSelector(false);
                 fetchMessages();
             }
         } catch (error) {
@@ -177,6 +206,10 @@ const ChatMessagesScreen = () => {
 
     // Improved image picker with options
     const showImagePickerOptions = () => {
+        // Dismiss keyboard and emoji selector when selecting image
+        Keyboard.dismiss();
+        setShowEmojiSelector(false);
+
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
@@ -336,7 +369,7 @@ const ChatMessagesScreen = () => {
                                 />
                             )}
 
-                            <Text className="ml-1.5 text-sm font-bold text-blue-600">
+                            <Text className="ml-1.5 text-sm font-bold text-white">
                                 {recepientData?.name || 'Loading...'}
                             </Text>
                         </View>
@@ -367,117 +400,136 @@ const ChatMessagesScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-black">
             <KeyboardAvoidingView
-                className="flex-1 bg-black"
+                className="flex-1"
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <ScrollView
-                    ref={scrollViewRef}
-                    className="flex-grow"
-                    onContentSizeChange={handleContentSizeChange}
-                >
-                    {messages.map((item, index) => {
-                        if (item.messageType === "text") {
-                            const isSelected = selectedMessages.includes(item._id);
-                            const isOwnMessage = item?.senderId?._id === userId;
+                <TouchableWithoutFeedback onPress={() => {
+                    Keyboard.dismiss();
+                    setShowEmojiSelector(false);
+                }}>
+                    <View className="flex-1">
+                        {/* Messages ScrollView */}
+                        <ScrollView
+                            ref={scrollViewRef}
+                            className="flex-1"
+                            onContentSizeChange={handleContentSizeChange}
+                            keyboardDismissMode="on-drag"
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            {messages.map((item, index) => {
+                                if (item.messageType === "text") {
+                                    const isSelected = selectedMessages.includes(item._id);
+                                    const isOwnMessage = item?.senderId?._id === userId;
 
-                            return (
-                                <Pressable
-                                    onLongPress={() => handleSelectMessage(item)}
-                                    key={index}
-                                    className={`
-                                        p-2 m-2.5 rounded-lg max-w-[60%]
-                                        ${isOwnMessage ? 'self-end bg-gray-600' : 'self-start bg-gray-600'}
-                                        ${isSelected ? 'w-full bg-gray-700' : ''}
-                                    `}
-                                >
-                                    <Text className={`text-xs text-blue-600 ${isSelected ? 'text-right' : 'text-left'}`}>
-                                        {item?.message}
-                                    </Text>
-                                    <Text className="text-right text-[9px] text-gray-400 mt-1.5">
-                                        {formatTime(item.timeStamp)}
-                                    </Text>
-                                </Pressable>
-                            );
-                        }
+                                    return (
+                                        <Pressable
+                                            onLongPress={() => handleSelectMessage(item)}
+                                            key={index}
+                                            className={`
+                                                p-2 m-2.5 rounded-lg max-w-[60%]
+                                                ${isOwnMessage ? 'self-end bg-gray-600' : 'self-start bg-gray-600'}
+                                                ${isSelected ? 'w-full bg-gray-700' : ''}
+                                            `}
+                                        >
+                                            <Text className={`text-xs text-blue-600 ${isSelected ? 'text-right' : 'text-left'}`}>
+                                                {item?.message}
+                                            </Text>
+                                            <Text className="text-right text-[9px] text-gray-400 mt-1.5">
+                                                {formatTime(item.timeStamp)}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                }
 
-                        if (item.messageType === "image") {
-                            const isOwnMessage = item?.senderId?._id === userId;
-                            const baseUrl = "/Users/sujananand/Build/messenger-project/api/files/";
-                            const imageUrl = item.imageUrl || "";
-                            const filename = imageUrl.split("/").pop();
-                            const source = { uri: baseUrl + filename };
+                                if (item.messageType === "image") {
+                                    const isOwnMessage = item?.senderId?._id === userId;
+                                    const baseUrl = "/Users/sujananand/Build/messenger-project/api/files/";
+                                    const imageUrl = item.imageUrl || "";
+                                    const filename = imageUrl.split("/").pop();
+                                    const source = { uri: baseUrl + filename };
 
-                            return (
-                                <Pressable
-                                    key={index}
-                                    className={`
-                                        p-2 m-2.5 rounded-lg max-w-[60%]
-                                        ${isOwnMessage ? 'self-end bg-gray-600' : 'self-start bg-gray-600'}
-                                    `}
-                                >
-                                    <View className="relative">
-                                        <Image
-                                            source={source}
-                                            className="w-50 h-50 rounded-lg"
-                                        />
-                                        <Text className="absolute right-2.5 bottom-2 text-blue-600 text-[9px] mt-1.5">
-                                            {formatTime(item?.timeStamp)}
-                                        </Text>
-                                    </View>
-                                </Pressable>
-                            );
-                        }
+                                    return (
+                                        <Pressable
+                                            key={index}
+                                            className={`
+                                                p-2 m-2.5 rounded-lg max-w-[60%]
+                                                ${isOwnMessage ? 'self-end bg-gray-600' : 'self-start bg-gray-600'}
+                                            `}
+                                        >
+                                            <View className="relative">
+                                                <Image
+                                                    source={source}
+                                                    className="w-50 h-50 rounded-lg"
+                                                />
+                                                <Text className="absolute right-2.5 bottom-2 text-blue-600 text-[9px] mt-1.5">
+                                                    {formatTime(item?.timeStamp)}
+                                                </Text>
+                                            </View>
+                                        </Pressable>
+                                    );
+                                }
 
-                        return null;
-                    })}
-                </ScrollView>
+                                return null;
+                            })}
+                        </ScrollView>
 
-                <View className="flex-row items-center px-2.5 py-2.5 border-t border-gray-700 bg-black">
-                    <Entypo
-                        onPress={handleEmojiPress}
-                        style={{ marginRight: 5 }}
-                        name="emoji-happy"
-                        size={24}
-                        color="#2563eb"
-                    />
+                        {/* Emoji Selector */}
+                        {showEmojiSelector && (
+                            <View className="h-64">
+                                <EmojiSelector
+                                    onEmojiSelected={(emoji) => {
+                                        setMessage((prevMessage) => prevMessage + emoji);
+                                    }}
+                                    theme="#000000"
+                                />
+                            </View>
+                        )}
 
-                    <TextInput
-                        value={message}
-                        onChangeText={(text) => setMessage(text)}
-                        className="flex-1 h-10 border border-gray-600 bg-gray-600 rounded-full px-2.5 text-blue-600"
-                        placeholder="Type Your message..."
-                        placeholderTextColor="#9ca3af"
-                    />
-
-                    <View className="flex-row items-center gap-2 mx-2">
-                        <Entypo
-                            onPress={showImagePickerOptions}
-                            name="camera"
-                            size={24}
-                            color="#2563eb"
-                        />
-                        <Feather name="mic" size={24} color="#2563eb" />
-                    </View>
-
-                    <Pressable
-                        onPress={() => handleSend("text")}
-                        className="bg-blue-600 py-2 px-3 rounded-full"
-                    >
-                        <Text className="text-white font-bold">Send</Text>
-                    </Pressable>
-                </View>
- 
-                {showEmojiSelector && (
-                    <View className="h-62 bg-black">
-                        <EmojiSelector
-                            onEmojiSelected={(emoji) => {
-                                setMessage((prevMessage) => prevMessage + emoji);
+                        {/* Message Input Container */}
+                        <View
+                            className="flex-row items-center px-2.5 py-2.5 border-t border-gray-700 bg-black"
+                            style={{
+                                marginBottom: showEmojiSelector ? 0 : keyboardHeight,
                             }}
-                            theme="#000000"
-                        />
+                        >
+                            <Entypo
+                                onPress={handleEmojiPress}
+                                style={{ marginRight: 5 }}
+                                name="emoji-happy"
+                                size={24}
+                                color="#2563eb"
+                            />
+
+                            <TextInput
+                                ref={textInputRef}
+                                value={message}
+                                onChangeText={(text) => setMessage(text)}
+                                className="flex-1 h-10 border border-gray-600 bg-gray-600 rounded-full px-2.5 text-white"
+                                placeholder="Type Your message..."
+                                placeholderTextColor="#9ca3af"
+                                multiline
+                            />
+
+                            <View className="flex-row items-center gap-2 mx-2">
+                                <Entypo
+                                    onPress={showImagePickerOptions}
+                                    name="camera"
+                                    size={24}
+                                    color="#2563eb"
+                                />
+                                <Feather name="mic" size={24} color="#2563eb" />
+                            </View>
+
+                            <Pressable
+                                onPress={() => handleSend("text")}
+                                className="bg-blue-600 py-2 px-3 rounded-full"
+                            >
+                                <Text className="text-white font-bold">Send</Text>
+                            </Pressable>
+                        </View>
                     </View>
-                )}
+                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
