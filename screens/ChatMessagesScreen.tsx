@@ -19,7 +19,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { FontAwesome } from "@expo/vector-icons";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Entypo } from "@expo/vector-icons";
-import EmojiSelector from "react-native-emoji-selector";
 import { useAtom } from "jotai";
 import { userIdAtom } from "../lib/store/userId.store";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -28,7 +27,6 @@ import config from "../config";
 import { Message, RecipientData, RouteParams } from "../lib/types";
 
 const ChatMessagesScreen = () => {
-    const [showEmojiSelector, setShowEmojiSelector] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [recepientData, setRecepientData] = useState<RecipientData>();
@@ -51,7 +49,6 @@ const ChatMessagesScreen = () => {
         // Keyboard event listeners
         const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
             setKeyboardHeight(e.endCoordinates.height);
-            setShowEmojiSelector(false); // Hide emoji selector when keyboard appears
             scrollToBottom();
         });
         const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
@@ -102,18 +99,6 @@ const ChatMessagesScreen = () => {
 
     const handleContentSizeChange = () => {
         scrollToBottom();
-    };
-
-    const handleEmojiPress = () => {
-        if (showEmojiSelector) {
-            // If emoji selector is showing, hide it and focus on text input
-            setShowEmojiSelector(false);
-            setTimeout(() => textInputRef.current?.focus(), 100);
-        } else {
-            // If emoji selector is not showing, hide keyboard and show emoji selector
-            Keyboard.dismiss();
-            setShowEmojiSelector(true);
-        }
     };
 
     const fetchMessages = async () => {
@@ -196,7 +181,6 @@ const ChatMessagesScreen = () => {
             if (response.ok) {
                 setMessage("");
                 setSelectedImage("");
-                setShowEmojiSelector(false);
                 fetchMessages();
             }
         } catch (error) {
@@ -206,9 +190,8 @@ const ChatMessagesScreen = () => {
 
     // Improved image picker with options
     const showImagePickerOptions = () => {
-        // Dismiss keyboard and emoji selector when selecting image
+        // Dismiss keyboard when selecting image
         Keyboard.dismiss();
-        setShowEmojiSelector(false);
 
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
@@ -404,10 +387,7 @@ const ChatMessagesScreen = () => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <TouchableWithoutFeedback onPress={() => {
-                    Keyboard.dismiss();
-                    setShowEmojiSelector(false);
-                }}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View className="flex-1">
                         {/* Messages ScrollView */}
                         <ScrollView
@@ -474,33 +454,13 @@ const ChatMessagesScreen = () => {
                             })}
                         </ScrollView>
 
-                        {/* Emoji Selector */}
-                        {showEmojiSelector && (
-                            <View className="h-64">
-                                <EmojiSelector
-                                    onEmojiSelected={(emoji) => {
-                                        setMessage((prevMessage) => prevMessage + emoji);
-                                    }}
-                                    theme="#000000"
-                                />
-                            </View>
-                        )}
-
                         {/* Message Input Container */}
                         <View
                             className="flex-row items-center px-2.5 py-2.5 border-t border-gray-700 bg-black"
                             style={{
-                                marginBottom: showEmojiSelector ? 0 : keyboardHeight,
+                                marginBottom: keyboardHeight,
                             }}
                         >
-                            <Entypo
-                                onPress={handleEmojiPress}
-                                style={{ marginRight: 5 }}
-                                name="emoji-happy"
-                                size={24}
-                                color="#2563eb"
-                            />
-
                             <TextInput
                                 ref={textInputRef}
                                 value={message}
