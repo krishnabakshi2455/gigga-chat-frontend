@@ -1,497 +1,310 @@
+import React, { useState, useRef, useEffect } from 'react';
 import {
-    Text,
     View,
-    ScrollView,
-    KeyboardAvoidingView,
+    Text,
     TextInput,
-    Pressable,
+    TouchableOpacity,
+    ScrollView,
     Image,
-    Alert,
-    ActionSheetIOS,
+    KeyboardAvoidingView,
     Platform,
+    TouchableWithoutFeedback,
     Keyboard,
-    TouchableWithoutFeedback
-} from "react-native";
-import React, { useState, useLayoutEffect, useEffect, useRef } from "react";
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from "@expo/vector-icons";
-import { Ionicons } from "@expo/vector-icons";
-import { FontAwesome } from "@expo/vector-icons";
-import { MaterialIcons } from "@expo/vector-icons";
-import { Entypo } from "@expo/vector-icons";
-import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/store/userId.store";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import * as ImagePicker from "expo-image-picker";
-import config from "../config";
-import { Message, RecipientData, RouteParams } from "../lib/types";
+    Alert,
+} from 'react-native';
+import { Ionicons, Feather, FontAwesome, MaterialIcons, Entypo } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
+
+// Define types for our messages
+type MessageType = 'text' | 'image' | 'audio';
+
+interface Message {
+    id: string;
+    text: string;
+    sender: 'me' | 'other';
+    time: string;
+    type: MessageType;
+    image?: string;
+    audio?: string;
+    duration?: string;
+}
 
 const ChatMessagesScreen = () => {
-    const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [recepientData, setRecepientData] = useState<RecipientData>();
-    const navigation = useNavigation();
-    const [selectedImage, setSelectedImage] = useState("");
-    const route = useRoute();
-    const { recepientId } = route.params as RouteParams;
-    const [message, setMessage] = useState("");
-    const [userId] = useAtom(userIdAtom);
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
-
+    const [inputText, setInputText] = useState('');
+    const [isRecording, setIsRecording] = useState(false);
+    const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const scrollViewRef = useRef<ScrollView>(null);
-    const textInputRef = useRef<TextInput>(null);
 
-    // Request permissions when component mounts
+    // Request permissions on component mount
     useEffect(() => {
-        requestPermissions();
-        scrollToBottom();
+        (async () => {
+            const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+            const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            const { status: audioStatus } = await Audio.requestPermissionsAsync();
 
-        // Keyboard event listeners
-        const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-            setKeyboardHeight(e.endCoordinates.height);
-            scrollToBottom();
-        });
-        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-            setKeyboardHeight(0);
-        });
-
-        return () => {
-            showSubscription.remove();
-            hideSubscription.remove();
-        };
+            if (cameraStatus !== 'granted' || libraryStatus !== 'granted' || audioStatus !== 'granted') {
+                Alert.alert('Permissions required', 'Please grant all permissions to use all chat features');
+            }
+        })();
     }, []);
 
-    const requestPermissions = async () => {
-        try {
-            // Request media library permissions
-            const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-            // Request camera permissions
-            const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-
-            if (mediaLibraryStatus !== 'granted') {
-                Alert.alert(
-                    'Permission Required',
-                    'Please grant permission to access your photo library to share images.',
-                    [{ text: 'OK' }]
-                );
-            }
-
-            if (cameraStatus !== 'granted') {
-                Alert.alert(
-                    'Permission Required',
-                    'Please grant camera permission to take photos.',
-                    [{ text: 'OK' }]
-                );
-            }
-        } catch (error) {
-            console.log('Error requesting permissions:', error);
-        }
-    };
-
-    const scrollToBottom = () => {
+    // Auto-scroll to bottom when new messages are added
+    useEffect(() => {
         if (scrollViewRef.current) {
             setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
             }, 100);
         }
-    };
+    }, [messages]);
 
-    const handleContentSizeChange = () => {
-        scrollToBottom();
-    };
+    const handleSendText = () => {
+        if (inputText.trim() === '') return;
 
-    const fetchMessages = async () => {
-        try {
-            const response = await fetch(
-                `${config.BACKEND_URL}/messages/${userId}/${recepientId}`
-            );
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessages(data);
-            } else {
-                console.log("error showing messages", response.status);
-            }
-        } catch (error) {
-            console.log("error fetching messages", error);
-        }
-    };
-
-    useEffect(() => {
-        if (userId) {
-            fetchMessages();
-        }
-    }, [userId]);
-
-    useEffect(() => {
-        const fetchRecepientData = async () => {
-            if (!userId) return;
-
-            try {
-                console.log("entered in fetchRecepientData trycatch");
-
-                const response = await fetch(
-                    `${config.BACKEND_URL}/accepted-friends/${userId}`
-                );
-                const data = await response.json();
-
-                if (response.ok) {
-                    // Find the specific recipient from the accepted friends list
-                    const recipient = data.find((friend: any) => friend._id === recepientId);
-                    if (recipient) {
-                        setRecepientData(recipient);
-                    } else {
-                        console.log("Recipient not found in accepted friends");
-                    }
-                } else {
-                    console.log("error fetching accepted friends", response.status);
-                }
-            } catch (error) {
-                console.log("error showing the accepted friends", error);
-            }
+        const newMessage: Message = {
+            id: Date.now().toString(),
+            text: inputText,
+            sender: 'me',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: 'text'
         };
 
-        fetchRecepientData();
-    }, [recepientId, userId]);
+        setMessages([...messages, newMessage]);
+        setInputText('');
+    };
 
-    const handleSend = async (messageType: "text" | "image", imageUri?: string) => {
+    const handleSendImage = async (useCamera = false) => {
         try {
-            const formData = new FormData();
-            formData.append("senderId", userId);
-            formData.append("recepientId", recepientId);
+            let result: ImagePicker.ImagePickerResult;
 
-            if (messageType === "image" && imageUri) {
-                formData.append("messageType", "image");
-                formData.append("imageFile", {
-                    uri: imageUri,
-                    name: "image.jpg",
-                    type: "image/jpeg",
-                } as any);
+            if (useCamera) {
+                result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [4, 3],
+                    quality: 0.8,
+                });
             } else {
-                formData.append("messageType", "text");
-                formData.append("messageText", message);
+                result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [4, 3],
+                    quality: 0.8,
+                });
             }
 
-            const response = await fetch(`${config.BACKEND_URL}/messages`, {
-                method: "POST",
-                body: formData,
-            });
-
-            if (response.ok) {
-                setMessage("");
-                setSelectedImage("");
-                fetchMessages();
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const newMessage: Message = {
+                    id: Date.now().toString(),
+                    text: '',
+                    sender: 'me',
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    type: 'image',
+                    image: result.assets[0].uri
+                };
+                setMessages([...messages, newMessage]);
             }
         } catch (error) {
-            console.log("error in sending the message", error);
+            Alert.alert('Error', 'Failed to select image');
         }
     };
 
-    // Improved image picker with options
     const showImagePickerOptions = () => {
-        // Dismiss keyboard when selecting image
-        Keyboard.dismiss();
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
+        Alert.alert(
+            "Send Image",
+            "Choose an option",
+            [
                 {
-                    options: ['Cancel', 'Take Photo', 'Choose from Library'],
-                    cancelButtonIndex: 0,
+                    text: "Take Photo",
+                    onPress: () => handleSendImage(true)
                 },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) {
-                        openCamera();
-                    } else if (buttonIndex === 2) {
-                        pickImageFromLibrary();
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                'Select Image',
-                'Choose an option',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Take Photo', onPress: openCamera },
-                    { text: 'Choose from Library', onPress: pickImageFromLibrary },
-                ]
-            );
-        }
-    };
-
-    const openCamera = async () => {
-        try {
-            // Check permissions first
-            const { status } = await ImagePicker.getCameraPermissionsAsync();
-            if (status !== 'granted') {
-                const { status: newStatus } = await ImagePicker.requestCameraPermissionsAsync();
-                if (newStatus !== 'granted') {
-                    Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-                    return;
-                }
-            }
-
-            const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.8, // Reduced quality for faster upload
-            });
-
-            if (!result.canceled && result.assets[0]) {
-                handleSend("image", result.assets[0].uri);
-            }
-        } catch (error) {
-            console.log('Error opening camera:', error);
-            Alert.alert('Error', 'Failed to open camera. Please try again.');
-        }
-    };
-
-    const pickImageFromLibrary = async () => {
-        try {
-            // Check permissions first
-            const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-                const { status: newStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (newStatus !== 'granted') {
-                    Alert.alert('Permission Required', 'Media library permission is required to select photos.');
-                    return;
-                }
-            }
-
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.8, // Reduced quality for faster upload
-            });
-
-            if (!result.canceled && result.assets[0]) {
-                handleSend("image", result.assets[0].uri);
-            }
-        } catch (error) {
-            console.log('Error picking image:', error);
-            Alert.alert('Error', 'Failed to select image. Please try again.');
-        }
-    };
-
-    const handleSelectMessage = (message: Message) => {
-        const isSelected = selectedMessages.includes(message._id);
-
-        if (isSelected) {
-            setSelectedMessages((previousMessages) =>
-                previousMessages.filter((id) => id !== message._id)
-            );
-        } else {
-            setSelectedMessages((previousMessages) => [
-                ...previousMessages,
-                message._id,
-            ]);
-        }
-    };
-
-    const deleteMessages = async (messageIds: string[]) => {
-        try {
-            const response = await fetch(`${config.BACKEND_URL}/deleteMessages`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
+                {
+                    text: "Choose from Gallery",
+                    onPress: () => handleSendImage(false)
                 },
-                body: JSON.stringify({ messages: messageIds }),
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
+
+    const startRecording = async () => {
+        try {
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
             });
 
-            if (response.ok) {
-                setSelectedMessages((prevSelectedMessages) =>
-                    prevSelectedMessages.filter((id) => !messageIds.includes(id))
-                );
-                fetchMessages();
-            } else {
-                console.log("error deleting messages", response.status);
-            }
-        } catch (error) {
-            console.log("error deleting messages", error);
+            const { recording } = await Audio.Recording.createAsync(
+                Audio.RecordingOptionsPresets.HIGH_QUALITY
+            );
+
+            setRecording(recording);
+            setIsRecording(true);
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            Alert.alert('Error', 'Failed to start recording');
         }
     };
 
-    const formatTime = (time: string) => {
-        const options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "numeric" };
-        return new Date(time).toLocaleString("en-US", options);
+    const stopRecording = async () => {
+        if (!recording) return;
+
+        setIsRecording(false);
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+
+        if (uri) {
+            const newMessage: Message = {
+                id: Date.now().toString(),
+                text: 'Audio message',
+                sender: 'me',
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: 'audio',
+                audio: uri,
+                duration: '0:15'
+            };
+
+            setMessages([...messages, newMessage]);
+        }
+        setRecording(null);
     };
 
-    useLayoutEffect(() => {
-        navigation.setOptions({
-            headerTitle: "",
-            headerStyle: {
-                backgroundColor: 'black',
-            },
-            headerTitleStyle: {
-                color: '#2563eb',
-            },
-            headerLeft: () => (
-                <View className="flex-row items-center gap-2.5">
-                    <Ionicons
-                        onPress={() => navigation.goBack()}
-                        name="arrow-back"
-                        size={24}
-                        color="#2563eb"
-                    />
+    const handleRecordAudio = () => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    };
 
-                    {selectedMessages.length > 0 ? (
-                        <View>
-                            <Text className="text-base font-medium text-blue-600">
-                                {selectedMessages.length}
-                            </Text>
-                        </View>
-                    ) : (
-                        <View className="flex-row items-center">
-                            {recepientData?.image && (
-                                <Image
-                                    className="w-8 h-8 rounded-full"
-                                    source={{ uri: recepientData.image }}
-                                />
-                            )}
-
-                            <Text className="ml-1.5 text-sm font-bold text-white">
-                                {recepientData?.name || 'Loading...'}
-                            </Text>
-                        </View>
-                    )}
+    const renderMessage = (message: Message) => {
+        if (message.type === 'text') {
+            return (
+                <View
+                    key={message.id}
+                    className={`p-3 rounded-lg mb-2 max-w-[80%] ${message.sender === 'me' ? 'bg-blue-600 self-end rounded-tr-none' : 'bg-gray-800 self-start rounded-tl-none'}`}
+                >
+                    <Text className="text-white text-base">{message.text}</Text>
+                    <Text className="text-gray-400 text-xs text-right mt-1">{message.time}</Text>
                 </View>
-            ),
-            headerRight: () =>
-                selectedMessages.length > 0 ? (
-                    <View className="flex-row items-center gap-2.5">
-                        <Ionicons name="arrow-redo-sharp" size={24} color="#2563eb" />
-                        <Ionicons name="arrow-undo-sharp" size={24} color="#2563eb" />
-                        <FontAwesome name="star" size={24} color="#2563eb" />
-                        <MaterialIcons
-                            onPress={() => deleteMessages(selectedMessages)}
-                            name="delete"
-                            size={24}
-                            color="#2563eb"
-                        />
+            );
+        } else if (message.type === 'image') {
+            return (
+                <View
+                    key={message.id}
+                    className={`mb-2 max-w-[80%] ${message.sender === 'me' ? 'self-end' : 'self-start'}`}
+                >
+                    <Image
+                        source={{ uri: message.image }}
+                        className="w-60 h-60 rounded-lg"
+                    />
+                    <View className="bg-black bg-opacity-50 p-2 rounded-b-lg">
+                        <Text className="text-gray-400 text-xs text-right">{message.time}</Text>
                     </View>
-                ) : null,
-        });
-    }, [recepientData, selectedMessages, navigation]);
-
-    if (!userId) {
-        return null;
-    }
+                </View>
+            );
+        } else if (message.type === 'audio') {
+            return (
+                <View
+                    key={message.id}
+                    className={`p-3 rounded-lg mb-2 max-w-[80%] ${message.sender === 'me' ? 'bg-blue-600 self-end rounded-tr-none' : 'bg-gray-800 self-start rounded-tl-none'}`}
+                >
+                    <View className="flex-row items-center">
+                        <Ionicons name="play-circle" size={24} color="#0084FF" />
+                        <View className="flex-row items-center mx-3">
+                            <View className="w-1 h-3 bg-blue-400 mx-0.5 rounded-full" />
+                            <View className="w-1 h-5 bg-blue-400 mx-0.5 rounded-full" />
+                            <View className="w-1 h-7 bg-blue-400 mx-0.5 rounded-full" />
+                            <View className="w-1 h-5 bg-blue-400 mx-0.5 rounded-full" />
+                            <View className="w-1 h-3 bg-blue-400 mx-0.5 rounded-full" />
+                        </View>
+                        <Text className="text-gray-400 text-xs">{message.duration}</Text>
+                    </View>
+                    <Text className="text-gray-400 text-xs text-right mt-2">{message.time}</Text>
+                </View>
+            );
+        }
+    };
 
     return (
-        <SafeAreaView className="flex-1 bg-black">
-            <KeyboardAvoidingView
-                className="flex-1"
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-            >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View className="flex-1">
-                        {/* Messages ScrollView */}
-                        <ScrollView
-                            ref={scrollViewRef}
-                            className="flex-1"
-                            onContentSizeChange={handleContentSizeChange}
-                            keyboardDismissMode="on-drag"
-                            keyboardShouldPersistTaps="handled"
-                        >
-                            {messages.map((item, index) => {
-                                if (item.messageType === "text") {
-                                    const isSelected = selectedMessages.includes(item._id);
-                                    const isOwnMessage = item?.senderId?._id === userId;
-
-                                    return (
-                                        <Pressable
-                                            onLongPress={() => handleSelectMessage(item)}
-                                            key={index}
-                                            className={`
-                                                p-2 m-2.5 rounded-lg max-w-[60%]
-                                                ${isOwnMessage ? 'self-end bg-gray-600' : 'self-start bg-gray-600'}
-                                                ${isSelected ? 'w-full bg-gray-700' : ''}
-                                            `}
-                                        >
-                                            <Text className={`text-xs text-blue-600 ${isSelected ? 'text-right' : 'text-left'}`}>
-                                                {item?.message}
-                                            </Text>
-                                            <Text className="text-right text-[9px] text-gray-400 mt-1.5">
-                                                {formatTime(item.timeStamp)}
-                                            </Text>
-                                        </Pressable>
-                                    );
-                                }
-
-                                if (item.messageType === "image") {
-                                    const isOwnMessage = item?.senderId?._id === userId;
-                                    const baseUrl = "/Users/sujananand/Build/messenger-project/api/files/";
-                                    const imageUrl = item.imageUrl || "";
-                                    const filename = imageUrl.split("/").pop();
-                                    const source = { uri: baseUrl + filename };
-
-                                    return (
-                                        <Pressable
-                                            key={index}
-                                            className={`
-                                                p-2 m-2.5 rounded-lg max-w-[60%]
-                                                ${isOwnMessage ? 'self-end bg-gray-600' : 'self-start bg-gray-600'}
-                                            `}
-                                        >
-                                            <View className="relative">
-                                                <Image
-                                                    source={source}
-                                                    className="w-50 h-50 rounded-lg"
-                                                />
-                                                <Text className="absolute right-2.5 bottom-2 text-blue-600 text-[9px] mt-1.5">
-                                                    {formatTime(item?.timeStamp)}
-                                                </Text>
-                                            </View>
-                                        </Pressable>
-                                    );
-                                }
-
-                                return null;
-                            })}
-                        </ScrollView>
-
-                        {/* Message Input Container */}
-                        <View
-                            className="flex-row items-center px-2.5 py-2.5 border-t border-gray-700 bg-black"
-                            style={{
-                                marginBottom: keyboardHeight,
-                            }}
-                        >
-                            <TextInput
-                                ref={textInputRef}
-                                value={message}
-                                onChangeText={(text) => setMessage(text)}
-                                className="flex-1 h-10 border border-gray-600 bg-gray-600 rounded-full px-2.5 text-white"
-                                placeholder="Type Your message..."
-                                placeholderTextColor="#9ca3af"
-                                multiline
-                            />
-
-                            <View className="flex-row items-center gap-2 mx-2">
-                                <Entypo
-                                    onPress={showImagePickerOptions}
-                                    name="camera"
-                                    size={24}
-                                    color="#2563eb"
-                                />
-                                <Feather name="mic" size={24} color="#2563eb" />
-                            </View>
-
-                            <Pressable
-                                onPress={() => handleSend("text")}
-                                className="bg-blue-600 py-2 px-3 rounded-full"
-                            >
-                                <Text className="text-white font-bold">Send</Text>
-                            </Pressable>
-                        </View>
+        <View className="flex-1 bg-black">
+            {/* Header */}
+            <View className="flex-row justify-between items-center px-4 py-3 bg-gray-900 border-b border-gray-800">
+                <View className="flex-row items-center">
+                    <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                    <Image
+                        source={{ uri: 'https://placekitten.com/40/40' }}
+                        className="w-10 h-10 rounded-full mx-3"
+                    />
+                    <View>
+                        <Text className="text-white text-base font-semibold">John Doe</Text>
+                        <Text className="text-gray-400 text-sm">Online</Text>
                     </View>
-                </TouchableWithoutFeedback>
+                </View>
+                <View className="flex-row items-center">
+                    <Ionicons name="videocam" size={24} color="#FFFFFF" className="mr-5" />
+                    <Ionicons name="call" size={22} color="#FFFFFF" className="mr-5" />
+                    <Entypo name="dots-three-vertical" size={20} color="#FFFFFF" />
+                </View>
+            </View>
+
+            {/* Messages Area */}
+            <View className="flex-1 px-3">
+                <ScrollView
+                    ref={scrollViewRef}
+                    className="py-3"
+                    showsVerticalScrollIndicator={false}
+                >
+                    {messages.map(renderMessage)}
+                </ScrollView>
+            </View>
+
+            {/* Input Area */}
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                className="flex-row items-center px-3 py-2 bg-gray-900 border-t border-gray-800"
+            >
+                <TouchableOpacity className="p-2">
+                    <Entypo name="emoji-happy" size={24} color="#8696A0" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    className="p-2"
+                    onPress={showImagePickerOptions}
+                >
+                    <Entypo name="attachment" size={24} color="#8696A0" />
+                </TouchableOpacity>
+                <TextInput
+                    className="flex-1 bg-gray-800 rounded-full px-4 py-2 text-white mx-2"
+                    value={inputText}
+                    onChangeText={setInputText}
+                    placeholder="Type a message"
+                    placeholderTextColor="#8696A0"
+                    multiline
+                />
+                <TouchableOpacity
+                    className="p-2"
+                    onPress={handleRecordAudio}
+                >
+                    {isRecording ? (
+                        <FontAwesome name="stop" size={24} color="#FF3B30" />
+                    ) : (
+                        <Feather name="mic" size={24} color="#8696A0" />
+                    )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                    className="w-10 h-10 bg-blue-600 rounded-full justify-center items-center ml-2"
+                    onPress={handleSendText}
+                    disabled={inputText.trim() === ''}
+                >
+                    <Ionicons
+                        name="send"
+                        size={20}
+                        color={inputText.trim() === '' ? "#8696A0" : "#FFFFFF"}
+                    />
+                </TouchableOpacity>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
     );
 };
 
