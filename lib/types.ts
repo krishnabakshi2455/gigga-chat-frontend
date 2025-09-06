@@ -3,7 +3,7 @@ export interface Message {
     senderId: {
         _id: string;
     };
-    messageType: "text" | "image";
+    messageType: "text" | "image" | "audio";
     message?: string;
     imageUrl?: string;
     timeStamp: string;
@@ -17,6 +17,8 @@ export interface RecipientData {
 
 export interface RouteParams {
     recepientId: string;
+    recepientName: string;
+    recepientImage: string;
 }
 
 export interface AcceptedFriend {
