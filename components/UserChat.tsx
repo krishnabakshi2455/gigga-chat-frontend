@@ -77,7 +77,9 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
         <Pressable
             onPress={() =>
                 navigation.navigate("Messages", {
-                    recepientId: item._id,
+                    _id: item._id,
+                    name: item.name,   
+                    image: item.image   
                 })
             }
             className="flex-row items-center py-4 px-5 border-b border-gray-800"

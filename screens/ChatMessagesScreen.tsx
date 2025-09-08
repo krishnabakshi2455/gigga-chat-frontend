@@ -3,53 +3,43 @@ import {
     View,
     ScrollView,
     KeyboardAvoidingView,
-    TextInput,
-    Pressable,
     Image,
     Alert,
-    ActionSheetIOS,
     Platform,
     Keyboard,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    TextInput,
+    Pressable
 } from "react-native";
 import React, { useState, useLayoutEffect, useEffect, useRef } from "react";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from "@expo/vector-icons";
-import { Ionicons } from "@expo/vector-icons";
-import { FontAwesome } from "@expo/vector-icons";
-import { MaterialIcons } from "@expo/vector-icons";
-import { Entypo } from "@expo/vector-icons";
 import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/store/userId.store";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import * as ImagePicker from "expo-image-picker";
-import { Audio } from 'expo-av';
-import config from "../config";
-import { Message, RecipientData, RouteParams } from "../lib/types";
+import { Ionicons, FontAwesome, MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
+import { userIdAtom } from "../lib/store/userId.store";
+import { ExtendedMessage, RecipientData } from "../lib/types";
+import MessageBubble from "../components/chatMessage/MessageBubble";
+import { requestPermissions } from "../lib/utils/permissionUtils";
+import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
+import { deleteMessages } from "../lib/utils/messageUtils";
+import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
 
-// Extend the Message interface to include audioUrl (only additional property needed)
-interface ExtendedMessage extends Message {
-    audioUrl?: string;
-}
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
     const [messages, setMessages] = useState<ExtendedMessage[]>([]);
     const [recepientData, setRecepientData] = useState<RecipientData>();
     const navigation = useNavigation();
-    const [selectedImage, setSelectedImage] = useState("");
     const route = useRoute();
-    const { recepientId, recepientName, recepientImage } = route.params as RouteParams;
+    const { _id, name, image } = route.params as RecipientData;
     const [message, setMessage] = useState("");
     const [userId] = useAtom(userIdAtom);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
-    const [recording, setRecording] = useState<Audio.Recording | null>(null);
+    const [recording, setRecording] = useState<any>(null);
     const [isRecording, setIsRecording] = useState(false);
 
     const scrollViewRef = useRef<ScrollView>(null);
-    const textInputRef = useRef<TextInput>(null);
 
-    // Request permissions when component mounts
     useEffect(() => {
         requestPermissions();
         scrollToBottom();
@@ -69,45 +59,6 @@ const ChatMessagesScreen = () => {
         };
     }, []);
 
-    const requestPermissions = async () => {
-        try {
-            // Request media library permissions
-            const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-            // Request camera permissions
-            const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-
-            // Request audio recording permissions
-            const { status: audioStatus } = await Audio.requestPermissionsAsync();
-
-            if (mediaLibraryStatus !== 'granted') {
-                Alert.alert(
-                    'Permission Required',
-                    'Please grant permission to access your photo library to share images.',
-                    [{ text: 'OK' }]
-                );
-            }
-
-            if (cameraStatus !== 'granted') {
-                Alert.alert(
-                    'Permission Required',
-                    'Please grant camera permission to take photos.',
-                    [{ text: 'OK' }]
-                );
-            }
-
-            if (audioStatus !== 'granted') {
-                Alert.alert(
-                    'Permission Required',
-                    'Please grant microphone permission to record audio.',
-                    [{ text: 'OK' }]
-                );
-            }
-        } catch (error) {
-            console.log('Error requesting permissions:', error);
-        }
-    };
-
     const scrollToBottom = () => {
         if (scrollViewRef.current) {
             setTimeout(() => {
@@ -124,20 +75,6 @@ const ChatMessagesScreen = () => {
         try {
             // Simulated API call - replace with actual implementation
             console.log("Fetching messages from backend...");
-
-            /*
-            // BACKEND IMPLEMENTATION:
-            const response = await fetch(
-                `${config.BACKEND_URL}/messages/${userId}/${recepientId}`
-            );
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessages(data);
-            } else {
-                console.log("error showing messages", response.status);
-            }
-            */
         } catch (error) {
             console.log("error fetching messages", error);
         }
@@ -154,34 +91,11 @@ const ChatMessagesScreen = () => {
             if (!userId) return;
 
             try {
-                console.log("Fetching recipient data...");
-
-                /*
-                // BACKEND IMPLEMENTATION:
-                const response = await fetch(
-                    `${config.BACKEND_URL}/accepted-friends/${userId}`
-                );
-                const data = await response.json();
-
-                if (response.ok) {
-                    // Find the specific recipient from the accepted friends list
-                    const recipient = data.find((friend: any) => friend._id === recepientId);
-                    if (recipient) {
-                        setRecepientData(recipient);
-                    } else {
-                        console.log("Recipient not found in accepted friends");
-                    }
-                } else {
-                    console.log("error fetching accepted friends", response.status);
-                }
-                */
-
                 // For demo purposes, we'll simulate fetching recipient data
-                // In a real app, you would use the actual API call above
                 const simulatedRecipient: RecipientData = {
-                    _id: recepientId,
-                    name: recepientName,
-                    image: recepientImage
+                    _id: _id,
+                    name: name,
+                    image: image
                 };
                 setRecepientData(simulatedRecipient);
             } catch (error) {
@@ -190,9 +104,9 @@ const ChatMessagesScreen = () => {
         };
 
         fetchRecepientData();
-    }, [recepientId, recepientName, recepientImage, userId]);
+    }, [_id, name, image, userId]);
 
-    const handleSend = async (messageType: Message['messageType'], content?: string) => {
+    const handleSend = async (messageType: any, content?: string) => {
         try {
             console.log(`Sending ${messageType} message:`, content || "No content");
 
@@ -215,183 +129,26 @@ const ChatMessagesScreen = () => {
             // Add to local state for immediate UI update
             setMessages(prev => [...prev, newMessage]);
             setMessage("");
-            setSelectedImage("");
-
             scrollToBottom();
-
-            /*
-            // BACKEND IMPLEMENTATION:
-            const formData = new FormData();
-            formData.append("senderId", userId);
-            formData.append("recepientId", recepientId);
-
-            if (messageType === "image" && content) {
-                formData.append("messageType", "image");
-                formData.append("imageFile", {
-                    uri: content,
-                    name: "image.jpg",
-                    type: "image/jpeg",
-                } as any);
-            } else if (messageType === "audio" && content) {
-                formData.append("messageType", "audio");
-                formData.append("audioFile", {
-                    uri: content,
-                    name: "audio.m4a",
-                    type: "audio/m4a",
-                } as any);
-            } else {
-                formData.append("messageType", "text");
-                formData.append("messageText", message);
-            }
-
-            const response = await fetch(`${config.BACKEND_URL}/messages`, {
-                method: "POST",
-                body: formData,
-            });
-
-            if (response.ok) {
-                setMessage("");
-                setSelectedImage("");
-                fetchMessages(); // Refresh messages from server
-            }
-            */
         } catch (error) {
             console.log("error in sending the message", error);
         }
     };
 
-    // Improved image picker with options
-    const showImagePickerOptions = () => {
-        // Dismiss keyboard when selecting image
-        Keyboard.dismiss();
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options: ['Cancel', 'Take Photo', 'Choose from Library'],
-                    cancelButtonIndex: 0,
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) {
-                        openCamera();
-                    } else if (buttonIndex === 2) {
-                        pickImageFromLibrary();
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                'Select Image',
-                'Choose an option',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Take Photo', onPress: openCamera },
-                    { text: 'Choose from Library', onPress: pickImageFromLibrary },
-                ]
-            );
-        }
+    const handleImageSelected = (uri: string) => {
+        handleSend("image", uri);
     };
 
-    const openCamera = async () => {
-        try {
-            // Check permissions first
-            const { status } = await ImagePicker.getCameraPermissionsAsync();
-            if (status !== 'granted') {
-                const { status: newStatus } = await ImagePicker.requestCameraPermissionsAsync();
-                if (newStatus !== 'granted') {
-                    Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-                    return;
-                }
-            }
-
-            const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.8, // Reduced quality for faster upload
-            });
-
-            if (!result.canceled && result.assets && result.assets[0]) {
-                handleSend("image", result.assets[0].uri);
-            }
-        } catch (error) {
-            console.log('Error opening camera:', error);
-            Alert.alert('Error', 'Failed to open camera. Please try again.');
-        }
+    const handleStartRecording = async () => {
+        await startRecording(setRecording, setIsRecording);
     };
 
-    const pickImageFromLibrary = async () => {
-        try {
-            // Check permissions first
-            const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-                const { status: newStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (newStatus !== 'granted') {
-                    Alert.alert('Permission Required', 'Media library permission is required to select photos.');
-                    return;
-                }
-            }
-
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.8, // Reduced quality for faster upload
-            });
-
-            if (!result.canceled && result.assets && result.assets[0]) {
-                handleSend("image", result.assets[0].uri);
-            }
-        } catch (error) {
-            console.log('Error picking image:', error);
-            Alert.alert('Error', 'Failed to select image. Please try again.');
+    const handleStopRecording = async () => {
+        const uri = await stopRecording(recording, setIsRecording);
+        if (uri) {
+            handleSend("audio", uri);
         }
-    };
-
-    const startRecording = async () => {
-        try {
-            console.log('Requesting permissions..');
-            await Audio.requestPermissionsAsync();
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-            });
-
-            console.log('Starting recording..');
-            const { recording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
-            );
-            setRecording(recording);
-            setIsRecording(true);
-            console.log('Recording started');
-        } catch (err) {
-            console.error('Failed to start recording', err);
-        }
-    };
-
-    const stopRecording = async () => {
-        console.log('Stopping recording..');
-        setIsRecording(false);
-
-        if (!recording) return;
-
-        try {
-            await recording.stopAndUnloadAsync();
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: false,
-            });
-
-            const uri = recording.getURI();
-            console.log('Recording stopped and stored at', uri);
-
-            if (uri) {
-                handleSend("audio", uri);
-            }
-
-            setRecording(null);
-        } catch (error) {
-            console.log('Error stopping recording:', error);
-        }
+        setRecording(null);
     };
 
     const handleSelectMessage = (message: ExtendedMessage) => {
@@ -409,54 +166,8 @@ const ChatMessagesScreen = () => {
         }
     };
 
-    const deleteMessages = async (messageIds: string[]) => {
-        try {
-            console.log("Deleting messages:", messageIds);
-
-            /*
-            // BACKEND IMPLEMENTATION:
-            const response = await fetch(`${config.BACKEND_URL}/deleteMessages`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ messages: messageIds }),
-            });
-
-            if (response.ok) {
-                setSelectedMessages((prevSelectedMessages) =>
-                    prevSelectedMessages.filter((id) => !messageIds.includes(id))
-                );
-                fetchMessages();
-            } else {
-                console.log("error deleting messages", response.status);
-            }
-            */
-
-            // Local state update for UI
-            setMessages(prev => prev.filter(msg => !messageIds.includes(msg._id)));
-            setSelectedMessages([]);
-        } catch (error) {
-            console.log("error deleting messages", error);
-        }
-    };
-
-    const formatTime = (time: string) => {
-        const options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "numeric" };
-        return new Date(time).toLocaleString("en-US", options);
-    };
-
-    const playAudio = async (audioUri: string) => {
-        console.log("Playing audio:", audioUri);
-        try {
-            const { sound } = await Audio.Sound.createAsync(
-                { uri: audioUri },
-                { shouldPlay: true }
-            );
-            // You might want to store the sound object to control playback later
-        } catch (error) {
-            console.log("Error playing audio:", error);
-        }
+    const handleDeleteMessages = () => {
+        deleteMessages(selectedMessages, setMessages, setSelectedMessages);
     };
 
     const handleVideoCall = () => {
@@ -516,7 +227,7 @@ const ChatMessagesScreen = () => {
                         <Ionicons name="arrow-undo-sharp" size={24} color="#2563eb" />
                         <FontAwesome name="star" size={24} color="#2563eb" />
                         <MaterialIcons
-                            onPress={() => deleteMessages(selectedMessages)}
+                            onPress={handleDeleteMessages}
                             name="delete"
                             size={24}
                             color="#2563eb"
@@ -541,6 +252,8 @@ const ChatMessagesScreen = () => {
         });
     }, [recepientData, selectedMessages, navigation]);
 
+    // console.log("recepientData",recepientData);
+    
     if (!userId) {
         return null;
     }
@@ -563,60 +276,16 @@ const ChatMessagesScreen = () => {
                             keyboardShouldPersistTaps="handled"
                         >
                             {messages.map((item, index) => {
-                                const isOwnMessage = item?.senderId?._id === userId;
                                 const isSelected = selectedMessages.includes(item._id);
 
                                 return (
-                                    <Pressable
-                                        onLongPress={() => handleSelectMessage(item)}
+                                    <MessageBubble
                                         key={index}
-                                        className={`
-                                            p-2 m-2.5 rounded-lg max-w-[80%]
-                                            ${isOwnMessage ? 'self-end bg-blue-600' : 'self-start bg-gray-700'}
-                                            ${isSelected ? 'border-2 border-blue-400' : ''}
-                                        `}
-                                    >
-                                        {item.messageType === "text" && (
-                                            <>
-                                                <Text className={`text-white text-base ${isSelected ? 'text-right' : 'text-left'}`}>
-                                                    {item?.message}
-                                                </Text>
-                                                <Text className="text-right text-[10px] text-gray-300 mt-1">
-                                                    {formatTime(item.timeStamp)}
-                                                </Text>
-                                            </>
-                                        )}
-
-                                        {item.messageType === "image" && item.imageUrl && (
-                                            <View className="relative">
-                                                <Image
-                                                    source={{ uri: item.imageUrl }}
-                                                    className="w-60 h-60 rounded-lg"
-                                                    resizeMode="cover"
-                                                />
-                                                <Text className="absolute right-2 bottom-2 text-white text-[10px] bg-black bg-opacity-50 px-1 rounded">
-                                                    {formatTime(item.timeStamp)}
-                                                </Text>
-                                            </View>
-                                        )}
-
-                                        {item.messageType === "audio" && item.audioUrl && (
-                                            <View className="flex-row items-center">
-                                                <Ionicons
-                                                    name="play-circle"
-                                                    size={32}
-                                                    color="white"
-                                                    onPress={() => playAudio(item.audioUrl as string)}
-                                                />
-                                                <View className="ml-2 bg-gray-800 h-8 rounded-full w-40 justify-center">
-                                                    <Text className="text-white text-center">Audio Message</Text>
-                                                </View>
-                                                <Text className="ml-2 text-[10px] text-gray-300">
-                                                    {formatTime(item.timeStamp)}
-                                                </Text>
-                                            </View>
-                                        )}
-                                    </Pressable>
+                                        item={item}
+                                        userId={userId}
+                                        isSelected={isSelected}
+                                        onLongPress={() => handleSelectMessage(item)}
+                                    />
                                 );
                             })}
                         </ScrollView>
@@ -629,7 +298,6 @@ const ChatMessagesScreen = () => {
                             }}
                         >
                             <TextInput
-                                ref={textInputRef}
                                 value={message}
                                 onChangeText={(text) => setMessage(text)}
                                 className="flex-1 h-10 border border-gray-600 bg-gray-800 rounded-full px-4 text-white"
@@ -640,15 +308,18 @@ const ChatMessagesScreen = () => {
 
                             <View className="flex-row items-center gap-2 mx-2">
                                 <Entypo
-                                    onPress={showImagePickerOptions}
+                                    onPress={() => showImagePickerOptions(
+                                        () => openCamera(handleImageSelected),
+                                        () => pickImageFromLibrary(handleImageSelected)
+                                    )}
                                     name="camera"
                                     size={24}
                                     color="#2563eb"
                                 />
                                 <Pressable
-                                    onPressIn={startRecording}
-                                    onPressOut={stopRecording}
-                                    onLongPress={startRecording}
+                                    onPressIn={handleStartRecording}
+                                    onPressOut={handleStopRecording}
+                                    onLongPress={handleStartRecording}
                                 >
                                     <Feather
                                         name="mic"

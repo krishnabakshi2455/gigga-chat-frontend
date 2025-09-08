@@ -15,12 +15,6 @@ export interface RecipientData {
     image: string;
 }
 
-export interface RouteParams {
-    recepientId: string;
-    recepientName: string;
-    recepientImage: string;
-}
-
 export interface AcceptedFriend {
     _id: string;
     name: string;
@@ -60,4 +54,17 @@ export interface FriendRequest {
 
 export interface UserProps {
     item: UserItem;
+}
+export interface ExtendedMessage extends Message {
+    audioUrl?: string;
+}
+
+export interface MessageInputProps {
+    message: string;
+    setMessage: (text: string) => void;
+    onSendTextMessage: () => void;
+    onShowImagePicker: () => void;
+    onStartRecording: () => void;
+    onStopRecording: () => void;
+    isRecording: boolean;
 }
