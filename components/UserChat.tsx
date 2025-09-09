@@ -2,7 +2,7 @@ import { Text, View, Pressable, Image } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/store/userId.store";
+import { userIdAtom } from "../src/lib/store/userId.store";
 import config from "../config";
 
 interface Message {

@@ -17,14 +17,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAtom } from "jotai";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons, FontAwesome, MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
-import { userIdAtom, userTokenAtom } from "../lib/store/userId.store"; // Add token to your store
-import { ExtendedMessage, RecipientData } from "../lib/types";
-import MessageBubble from "../components/chatMessage/MessageBubble";
-import { requestPermissions } from "../lib/utils/permissionUtils";
-import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
-import { deleteMessages } from "../lib/utils/messageUtils";
-import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
+import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store"; // Add token to your store
+import { ExtendedMessage, RecipientData } from "../src/lib/types";
+import { requestPermissions } from "../src/lib/utils/permissionUtils";
+import { deleteMessages } from "../src/lib/utils/messageUtils";
 import { socketService } from "../src/services/socketServices";
+import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
+import MessageBubble from "../components/chatMessage/MessageBubble";
+import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -137,20 +137,20 @@ const ChatMessagesScreen = () => {
         scrollToBottom();
     };
 
-    const fetchMessages = async () => {
-        try {
-            // Your existing message fetching logic
-            console.log("Fetching messages from backend...");
-        } catch (error) {
-            console.log("error fetching messages", error);
-        }
-    };
+    // const fetchMessages = async () => {
+    //     try {
+    //         // Your existing message fetching logic
+    //         console.log("Fetching messages from backend...");
+    //     } catch (error) {
+    //         console.log("error fetching messages", error);
+    //     }
+    // };
 
-    useEffect(() => {
-        if (userId) {
-            fetchMessages();
-        }
-    }, [userId]);
+    // useEffect(() => {
+    //     if (userId) {
+    //         fetchMessages();
+    //     }
+    // }, [userId]);
 
     useEffect(() => {
         const fetchRecepientData = async () => {
@@ -441,9 +441,8 @@ const ChatMessagesScreen = () => {
                                     color="#2563eb"
                                 />
                                 <Pressable
-                                    onPressIn={handleStartRecording}
-                                    onPressOut={handleStopRecording}
-                                    onLongPress={handleStartRecording}
+                                    onPressIn={handleStartRecording} // Start recording when pressed
+                                    onPressOut={handleStopRecording} // Stop recording when released
                                 >
                                     <Feather
                                         name="mic"

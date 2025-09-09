@@ -8,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "../config";
-import { userIdAtom } from "../lib/store/userId.store";
+import { userIdAtom } from "../src/lib/store/userId.store";
 import User from "../components/User";
 
 const HomeScreen = () => {

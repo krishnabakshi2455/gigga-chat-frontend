@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, Image, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { ExtendedMessage } from "../../lib/types";
-import { formatTime } from "../../lib/utils/timeUtils";
-import { playAudio } from "../../lib/utils/messageUtils";
+import { ExtendedMessage } from "../../src/lib/types";
+import { formatTime } from "../../src/lib/utils/timeUtils";
+import { playAudio } from "../../src/lib/utils/messageUtils";
 
 interface MessageBubbleProps {
     item: ExtendedMessage;

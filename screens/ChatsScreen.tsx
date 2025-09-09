@@ -1,11 +1,11 @@
 import { Text, View, ScrollView, Pressable } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { userIdAtom } from "../lib/store/userId.store";
+import { userIdAtom } from "../src/lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
 import config from "../config";
+import { AcceptedFriend } from "../src/lib/types";
 import UserChat from "../components/UserChat";
-import { AcceptedFriend } from "../lib/types";
 
 
 const ChatsScreen: React.FC = () => {

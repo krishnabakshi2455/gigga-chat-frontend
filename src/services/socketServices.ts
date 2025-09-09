@@ -30,7 +30,9 @@ class SocketService {
                     userId
                 },
                 transports: ['websocket', 'polling'],
-                forceNew: true
+                forceNew: true,
+                timeout: 10000, // Increase timeout
+                reconnectionAttempts: 3,
             });
 
             // Connection events
@@ -38,6 +40,7 @@ class SocketService {
                 console.log('Connected to server');
                 this.isConnected = true;
                 resolve(true);
+                console.log("✅ Socket connected successfully");
             });
 
             this.socket.on('disconnect', () => {

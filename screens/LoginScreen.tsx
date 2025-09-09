@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import config from "../config";
 import { useAtom } from "jotai";
-import { userTokenAtom } from "../lib/store/userId.store";
+import { userTokenAtom } from "../src/lib/store/userId.store";
 
 // Configure Google Sign-In 
 GoogleSignin.configure({

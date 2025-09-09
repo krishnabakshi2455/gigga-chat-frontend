@@ -2,10 +2,10 @@ import { Text, View, FlatList, ActivityIndicator, ListRenderItem } from "react-n
 import React, { useEffect, useState } from "react";
 import { useAtom } from 'jotai';
 import axios, { AxiosResponse } from "axios";
-import FriendRequest from "../components/FriendRequest";
-import { userIdAtom } from "../lib/store/userId.store";
-import { ApiResponse, FriendRequestItem } from "../lib/types";
+import { userIdAtom } from "../src/lib/store/userId.store";
+import { ApiResponse, FriendRequestItem } from "../src/lib/types";
 import config from "../config";
+import FriendRequest from "../components/FriendRequest";
 
 const FriendsScreen: React.FC = () => {
     const [userId] = useAtom(userIdAtom);
