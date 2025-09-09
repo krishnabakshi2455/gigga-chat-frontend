@@ -9,21 +9,22 @@ import {
     Keyboard,
     TouchableWithoutFeedback,
     TextInput,
-    Pressable
+    Pressable,
+    AppState
 } from "react-native";
-import React, { useState, useLayoutEffect, useEffect, useRef } from "react";
+import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAtom } from "jotai";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons, FontAwesome, MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
-import { userIdAtom } from "../lib/store/userId.store";
+import { userIdAtom, userTokenAtom } from "../lib/store/userId.store"; // Add token to your store
 import { ExtendedMessage, RecipientData } from "../lib/types";
 import MessageBubble from "../components/chatMessage/MessageBubble";
 import { requestPermissions } from "../lib/utils/permissionUtils";
 import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
 import { deleteMessages } from "../lib/utils/messageUtils";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
-
+import { socketService } from "../src/services/socketServices";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -34,15 +35,73 @@ const ChatMessagesScreen = () => {
     const { _id, name, image } = route.params as RecipientData;
     const [message, setMessage] = useState("");
     const [userId] = useAtom(userIdAtom);
+    const [userToken] = useAtom(userTokenAtom); // Get token from store
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const [recording, setRecording] = useState<any>(null);
     const [isRecording, setIsRecording] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const scrollViewRef = useRef<ScrollView>(null);
+
+    // Memoized event handlers to prevent unnecessary re-renders
+    const handleReceiveMessage = useCallback((data: any) => {
+        const newMessage: ExtendedMessage = {
+            _id: Date.now().toString(), // You should use a proper ID from server
+            messageType: data.messageType || 'text',
+            senderId: { _id: data.senderId },
+            timeStamp: data.timestamp || new Date().toISOString(),
+            message: data.message,
+            imageUrl: data.messageType === 'image' ? data.message : undefined,
+            audioUrl: data.messageType === 'audio' ? data.message : undefined
+        };
+
+        setMessages(prev => [...prev, newMessage]);
+        scrollToBottom();
+    }, []);
+
+    const handleUserTyping = useCallback((data: any) => {
+        if (data.userId === _id) {
+            setIsTyping(data.isTyping);
+
+            // Auto hide typing indicator after 2 seconds
+            if (data.isTyping && typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+
+            if (data.isTyping) {
+                typingTimeoutRef.current = setTimeout(() => {
+                    setIsTyping(false);
+                }, 2000);
+            }
+        }
+    }, [_id]);
 
     useEffect(() => {
         requestPermissions();
         scrollToBottom();
+
+        // Connect to socket when component mounts
+        if (userId && userToken) {
+            socketService.connect(userToken, userId);
+
+            // Set up message listener
+            socketService.on('receive_message', handleReceiveMessage);
+
+            // Set up typing listener
+            socketService.on('user_typing', handleUserTyping);
+        }
+
+        // Handle app state changes (foreground/background)
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active' && userId && userToken) {
+                // Reconnect when app comes to foreground
+                socketService.connect(userToken, userId);
+            } else if (nextAppState === 'background') {
+                // Clean up when app goes to background
+                socketService.removeAllListeners();
+            }
+        });
 
         // Keyboard event listeners
         const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
@@ -53,11 +112,18 @@ const ChatMessagesScreen = () => {
             setKeyboardHeight(0);
         });
 
+        // Clean up on component unmount
         return () => {
+            subscription.remove();
             showSubscription.remove();
             hideSubscription.remove();
+            socketService.removeAllListeners();
+
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
         };
-    }, []);
+    }, [userId, userToken, handleReceiveMessage, handleUserTyping]);
 
     const scrollToBottom = () => {
         if (scrollViewRef.current) {
@@ -73,7 +139,7 @@ const ChatMessagesScreen = () => {
 
     const fetchMessages = async () => {
         try {
-            // Simulated API call - replace with actual implementation
+            // Your existing message fetching logic
             console.log("Fetching messages from backend...");
         } catch (error) {
             console.log("error fetching messages", error);
@@ -91,7 +157,6 @@ const ChatMessagesScreen = () => {
             if (!userId) return;
 
             try {
-                // For demo purposes, we'll simulate fetching recipient data
                 const simulatedRecipient: RecipientData = {
                     _id: _id,
                     name: name,
@@ -108,11 +173,11 @@ const ChatMessagesScreen = () => {
 
     const handleSend = async (messageType: any, content?: string) => {
         try {
-            console.log(`Sending ${messageType} message:`, content || "No content");
+            if (!_id) return;
 
             // Create a new message object
             const newMessage: ExtendedMessage = {
-                _id: Date.now().toString(), // Temporary ID
+                _id: `temp-${Date.now()}`,
                 messageType,
                 senderId: { _id: userId },
                 timeStamp: new Date().toISOString(),
@@ -120,18 +185,35 @@ const ChatMessagesScreen = () => {
 
             if (messageType === "text") {
                 newMessage.message = message;
+                // Send via socket
+                const sent = socketService.sendMessage(_id, message, "text");
+                if (!sent) {
+                    Alert.alert("Error", "Could not send message. Please check your connection.");
+                }
             } else if (messageType === "image" && content) {
                 newMessage.imageUrl = content;
+                // Send via socket
+                const sent = socketService.sendImageMessage(_id, content);
+                if (!sent) {
+                    Alert.alert("Error", "Could not send image. Please check your connection.");
+                }
             } else if (messageType === "audio" && content) {
                 newMessage.audioUrl = content;
+                // Send via socket
+                const sent = socketService.sendAudioMessage(_id, content);
+                if (!sent) {
+                    Alert.alert("Error", "Could not send audio. Please check your connection.");
+                }
             }
 
             // Add to local state for immediate UI update
             setMessages(prev => [...prev, newMessage]);
             setMessage("");
             scrollToBottom();
+
         } catch (error) {
             console.log("error in sending the message", error);
+            Alert.alert("Error", "Failed to send message");
         }
     };
 
@@ -172,12 +254,45 @@ const ChatMessagesScreen = () => {
 
     const handleVideoCall = () => {
         console.log("Initiating video call with:", recepientData?.name);
-        // Implement video call functionality here
     };
 
     const handleAudioCall = () => {
         console.log("Initiating audio call with:", recepientData?.name);
-        // Implement audio call functionality here
+    };
+
+    // Handle typing events with debouncing
+    const handleTyping = () => {
+        if (_id) {
+            socketService.startTyping(_id);
+        }
+    };
+
+    const handleStopTyping = () => {
+        if (_id) {
+            socketService.stopTyping(_id);
+        }
+    };
+
+    // Debounced typing handler
+    const debouncedTypingHandler = useRef<NodeJS.Timeout | null>(null);
+
+    const handleTextChange = (text: string) => {
+        setMessage(text);
+
+        // Notify typing with debounce
+        if (text.length > 0 && _id) {
+            if (debouncedTypingHandler.current) {
+                clearTimeout(debouncedTypingHandler.current);
+            }
+
+            socketService.startTyping(_id);
+
+            debouncedTypingHandler.current = setTimeout(() => {
+                socketService.stopTyping(_id);
+            }, 1000);
+        } else if (_id) {
+            socketService.stopTyping(_id);
+        }
     };
 
     useLayoutEffect(() => {
@@ -252,8 +367,6 @@ const ChatMessagesScreen = () => {
         });
     }, [recepientData, selectedMessages, navigation]);
 
-    // console.log("recepientData",recepientData);
-    
     if (!userId) {
         return null;
     }
@@ -280,7 +393,7 @@ const ChatMessagesScreen = () => {
 
                                 return (
                                     <MessageBubble
-                                        key={index}
+                                        key={item._id || index}
                                         item={item}
                                         userId={userId}
                                         isSelected={isSelected}
@@ -288,6 +401,15 @@ const ChatMessagesScreen = () => {
                                     />
                                 );
                             })}
+
+                            {/* Typing Indicator */}
+                            {isTyping && (
+                                <View className="flex-row items-center p-2">
+                                    <View className="bg-gray-700 rounded-full p-3">
+                                        <Text className="text-white">Typing...</Text>
+                                    </View>
+                                </View>
+                            )}
                         </ScrollView>
 
                         {/* Message Input Container */}
@@ -299,7 +421,9 @@ const ChatMessagesScreen = () => {
                         >
                             <TextInput
                                 value={message}
-                                onChangeText={(text) => setMessage(text)}
+                                onChangeText={handleTextChange}
+                                onFocus={handleTyping}
+                                onBlur={handleStopTyping}
                                 className="flex-1 h-10 border border-gray-600 bg-gray-800 rounded-full px-4 text-white"
                                 placeholder="Type Your message..."
                                 placeholderTextColor="#9ca3af"

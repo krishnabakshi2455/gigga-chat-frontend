@@ -14,6 +14,8 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import config from "../config";
+import { useAtom } from "jotai";
+import { userTokenAtom } from "../lib/store/userId.store";
 
 // Configure Google Sign-In 
 GoogleSignin.configure({
@@ -25,6 +27,7 @@ const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [usertokenatom, setusertokenatom] = useAtom(userTokenAtom)
     const [errors, setErrors] = useState({
         email: "",
         password: "",
@@ -111,6 +114,7 @@ const LoginScreen = () => {
             .then((response) => {
                 const token = response.data.token;
                 AsyncStorage.setItem("authToken", token);
+                setusertokenatom(token)
                 navigation.replace("Home");
             })
             .catch((error) => {
