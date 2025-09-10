@@ -31,7 +31,7 @@ class SocketService {
                 },
                 transports: ['websocket', 'polling'],
                 forceNew: true,
-                timeout: 10000, // Increase timeout
+                timeout: 10000,
                 reconnectionAttempts: 3,
             });
 
@@ -70,10 +70,11 @@ class SocketService {
             this.socket = null;
             this.isConnected = false;
         }
+        this.eventListeners.clear();
     }
 
     // Send message
-    sendMessage(receiverId: string, message: string, messageType: string = 'text') {
+    sendMessage(receiverId: string, message: string, messageType: string = 'text'): boolean {
         if (this.socket && this.isConnected) {
             this.socket.emit('send_message', {
                 receiverId,
@@ -82,33 +83,18 @@ class SocketService {
             });
             return true;
         }
+        console.warn('Socket not connected, message not sent');
         return false;
     }
 
     // Send image message
-    sendImageMessage(receiverId: string, imageUrl: string) {
-        if (this.socket && this.isConnected) {
-            this.socket.emit('send_message', {
-                receiverId,
-                message: imageUrl,
-                messageType: 'image'
-            });
-            return true;
-        }
-        return false;
+    sendImageMessage(receiverId: string, imageUrl: string): boolean {
+        return this.sendMessage(receiverId, imageUrl, 'image');
     }
 
     // Send audio message
-    sendAudioMessage(receiverId: string, audioUrl: string) {
-        if (this.socket && this.isConnected) {
-            this.socket.emit('send_message', {
-                receiverId,
-                message: audioUrl,
-                messageType: 'audio'
-            });
-            return true;
-        }
-        return false;
+    sendAudioMessage(receiverId: string, audioUrl: string): boolean {
+        return this.sendMessage(receiverId, audioUrl, 'audio');
     }
 
     // Typing indicators
@@ -125,7 +111,7 @@ class SocketService {
     }
 
     // Listen for events
-    on(event: string, callback: any) {
+    on(event: string, callback: (...args: any[]) => void) {
         if (this.socket) {
             this.socket.on(event, callback);
 
@@ -137,20 +123,43 @@ class SocketService {
         }
     }
 
-    // Remove listeners
+    // Remove specific listener
     off(event: string, callback?: Function) {
         if (this.socket) {
             if (callback) {
                 this.socket.off(event, callback as any);
+
+                // Remove from stored listeners
+                const listeners = this.eventListeners.get(event);
+                if (listeners) {
+                    const index = listeners.indexOf(callback);
+                    if (index > -1) {
+                        listeners.splice(index, 1);
+                    }
+                }
             } else {
                 this.socket.off(event);
+                this.eventListeners.delete(event);
             }
         }
     }
 
-    // Cleanup all listeners
-    removeAllListeners() {
-        if (this.socket) {
+    // Remove all listeners (safe to call even if socket doesn't exist)
+    removeAllListeners(): void {
+        try {
+            if (this.socket) {
+                this.socket.removeAllListeners();
+            }
+            this.eventListeners.clear();
+            console.log('All socket listeners removed');
+        } catch (error) {
+            console.warn('Error removing socket listeners:', error);
+        }
+    }
+
+    // Safe version that checks if method exists
+    safeRemoveAllListeners(): void {
+        if (this.socket && typeof this.socket.removeAllListeners === 'function') {
             this.socket.removeAllListeners();
         }
         this.eventListeners.clear();

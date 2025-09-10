@@ -139,7 +139,7 @@ const ChatMessagesScreen = () => {
 
     // const fetchMessages = async () => {
     //     try {
-    //         // Your existing message fetching logic
+    //         
     //         console.log("Fetching messages from backend...");
     //     } catch (error) {
     //         console.log("error fetching messages", error);
