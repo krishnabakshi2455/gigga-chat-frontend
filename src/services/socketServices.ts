@@ -26,8 +26,8 @@ class SocketService {
             // Connect to server
             this.socket = io(config.BACKEND_URL, {
                 auth: {
-                    token,
-                    userId
+                    token: token,    
+                    userId: userId  
                 },
                 transports: ['websocket', 'polling'],
                 forceNew: true,

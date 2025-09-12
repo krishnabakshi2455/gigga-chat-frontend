@@ -35,7 +35,7 @@ const ChatMessagesScreen = () => {
     const { _id, name, image } = route.params as RecipientData;
     const [message, setMessage] = useState("");
     const [userId] = useAtom(userIdAtom);
-    const [userToken] = useAtom(userTokenAtom); // Get token from store
+    const [userToken] = useAtom(userTokenAtom); 
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const [recording, setRecording] = useState<any>(null);
     const [isRecording, setIsRecording] = useState(false);
@@ -80,6 +80,8 @@ const ChatMessagesScreen = () => {
     useEffect(() => {
         requestPermissions();
         scrollToBottom();
+        console.log("userId ==>", userId ,"userToken ==>", userToken);
+        
 
         // Connect to socket when component mounts
         if (userId && userToken) {
