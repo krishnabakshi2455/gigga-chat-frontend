@@ -6,5 +6,3 @@ this exp://172.16.2.85:8081 causes the android login problem becaused google acc
 * check the naviagtion through out the application
 * add a notification system to send notification to the phone screen both lock and home screen
 * need to add s3 storage using imgur for image and audio storing 
-* need to add userId and usertoken in the login screen using jotai
-* the JWT_SECRET is different in both frontend and backend

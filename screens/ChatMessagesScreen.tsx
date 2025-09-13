@@ -80,7 +80,6 @@ const ChatMessagesScreen = () => {
     useEffect(() => {
         requestPermissions();
         scrollToBottom();
-        console.log("userId ==>", userId ,"userToken ==>", userToken);
         
 
         // Connect to socket when component mounts
