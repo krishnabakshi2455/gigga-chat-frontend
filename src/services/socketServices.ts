@@ -40,7 +40,7 @@ class SocketService {
                 console.log('Connected to server');
                 this.isConnected = true;
                 resolve(true);
-                console.log("✅ Socket connected successfully");
+                console.log("✅ Socket connected successfully",this.socket?.id);
             });
 
             this.socket.on('disconnect', () => {
@@ -120,6 +120,27 @@ class SocketService {
                 this.eventListeners.set(event, []);
             }
             this.eventListeners.get(event)?.push(callback);
+        }
+    }
+
+    // Join a conversation when user opens a chat
+    joinConversation(otherUserId: string) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('join_conversation', { otherUserId });
+        }
+    }
+
+    // Leave conversation when user closes chat
+    leaveConversation(otherUserId: string) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('leave_conversation', { otherUserId });
+        }
+    }
+
+    // Check if other user is online in conversation
+    checkConversationStatus(otherUserId: string) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('get_conversation_status', { otherUserId });
         }
     }
 

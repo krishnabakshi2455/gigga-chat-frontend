@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAtom } from "jotai";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons, FontAwesome, MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
-import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store"; // Add token to your store
+import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store";
 import { ExtendedMessage, RecipientData } from "../src/lib/types";
 import { requestPermissions } from "../src/lib/utils/permissionUtils";
 import { deleteMessages } from "../src/lib/utils/messageUtils";
@@ -35,19 +35,30 @@ const ChatMessagesScreen = () => {
     const { _id, name, image } = route.params as RecipientData;
     const [message, setMessage] = useState("");
     const [userId] = useAtom(userIdAtom);
-    const [userToken] = useAtom(userTokenAtom); 
+    const [userToken] = useAtom(userTokenAtom);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const [recording, setRecording] = useState<any>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+    const [isOtherUserOnline, setIsOtherUserOnline] = useState(false); // NEW: Track if other user is online
+    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting'); // NEW: Connection status
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const scrollViewRef = useRef<ScrollView>(null);
-
-    // Memoized event handlers to prevent unnecessary re-renders
+    // useEffect(() => {
+    //     console.log("=== CHAT DEBUG INFO ===");
+    //     console.log("🫵 Your MongoDB ID:", userId);
+    //     console.log("👤 Other User's MongoDB ID:", _id);
+    //     console.log("💬 Chat between:", userId, "and", _id);
+    //     console.log("📝 Recipient Data:", { _id, name, image });
+    //     console.log("=====================");
+    // }, [userId, _id, name, image]);
     const handleReceiveMessage = useCallback((data: any) => {
+        // Only accept messages from the current conversation
+        if (data.senderId !== _id) return;
+
         const newMessage: ExtendedMessage = {
-            _id: Date.now().toString(), // You should use a proper ID from server
+            _id: Date.now().toString(),
             messageType: data.messageType || 'text',
             senderId: { _id: data.senderId },
             timeStamp: data.timestamp || new Date().toISOString(),
@@ -58,13 +69,12 @@ const ChatMessagesScreen = () => {
 
         setMessages(prev => [...prev, newMessage]);
         scrollToBottom();
-    }, []);
+    }, [_id]);
 
     const handleUserTyping = useCallback((data: any) => {
         if (data.userId === _id) {
             setIsTyping(data.isTyping);
 
-            // Auto hide typing indicator after 2 seconds
             if (data.isTyping && typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
@@ -77,30 +87,87 @@ const ChatMessagesScreen = () => {
         }
     }, [_id]);
 
+    // NEW: Handle conversation status updates
+    const handleConversationJoined = useCallback((data: any) => {
+        console.log('✅ Conversation joined:', data);
+        setIsOtherUserOnline(data.isOtherUserOnline);
+        setConnectionStatus('connected');
+    }, []);
+
+    const handleUserJoinedConversation = useCallback((data: any) => {
+        console.log('👥 User joined conversation:', data);
+        if (data.connectedUsers.includes(_id)) {
+            setIsOtherUserOnline(true);
+        }
+    }, [_id]);
+
+    const handleUserLeftConversation = useCallback((data: any) => {
+        console.log('👋 User left conversation:', data);
+        if (data.userId === _id) {
+            setIsOtherUserOnline(false);
+        }
+    }, [_id]);
+
+    const handleMessageSent = useCallback((data: any) => {
+        console.log('📤 Message sent confirmation:', data);
+        // You can show delivery status here
+        if (data.isReceiverOnline) {
+            console.log('✅ Message delivered - receiver is online');
+        } else {
+            console.log('📱 Message sent - receiver is offline');
+        }
+    }, []);
+
     useEffect(() => {
         requestPermissions();
         scrollToBottom();
-        
 
         // Connect to socket when component mounts
-        if (userId && userToken) {
-            socketService.connect(userToken, userId);
+        if (userId && userToken && _id) {
+            const initializeSocket = async () => {
+                setConnectionStatus('connecting');
 
-            // Set up message listener
-            socketService.on('receive_message', handleReceiveMessage);
+                try {
+                    const connected = await socketService.connect(userToken, userId);
 
-            // Set up typing listener
-            socketService.on('user_typing', handleUserTyping);
+                    if (connected) {
+                        console.log('🔌 Socket connected, joining conversation...');
+
+                        // Join the conversation with the other user
+                        socketService.joinConversation(_id);
+
+                        // Set up all event listeners
+                        socketService.on('receive_message', handleReceiveMessage);
+                        socketService.on('user_typing', handleUserTyping);
+                        socketService.on('conversation_joined', handleConversationJoined);
+                        socketService.on('user_joined_conversation', handleUserJoinedConversation);
+                        socketService.on('user_left_conversation', handleUserLeftConversation);
+                        socketService.on('message_sent', handleMessageSent);
+
+                        setConnectionStatus('connected');
+                    } else {
+                        setConnectionStatus('disconnected');
+                        Alert.alert('Connection Error', 'Could not connect to chat server');
+                    }
+                } catch (error) {
+                    console.error('Socket connection error:', error);
+                    setConnectionStatus('disconnected');
+                }
+            };
+
+            initializeSocket();
         }
 
         // Handle app state changes (foreground/background)
         const subscription = AppState.addEventListener('change', nextAppState => {
-            if (nextAppState === 'active' && userId && userToken) {
+            if (nextAppState === 'active' && userId && userToken && _id) {
                 // Reconnect when app comes to foreground
-                socketService.connect(userToken, userId);
+                socketService.connect(userToken, userId).then(() => {
+                    socketService.joinConversation(_id);
+                });
             } else if (nextAppState === 'background') {
-                // Clean up when app goes to background
-                socketService.removeAllListeners();
+                // Leave conversation when app goes to background
+                socketService.leaveConversation(_id);
             }
         });
 
@@ -118,13 +185,18 @@ const ChatMessagesScreen = () => {
             subscription.remove();
             showSubscription.remove();
             hideSubscription.remove();
+
+            // Leave conversation and clean up socket
+            if (_id) {
+                socketService.leaveConversation(_id);
+            }
             socketService.removeAllListeners();
 
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
         };
-    }, [userId, userToken, handleReceiveMessage, handleUserTyping]);
+    }, [userId, userToken, _id, handleReceiveMessage, handleUserTyping, handleConversationJoined, handleUserJoinedConversation, handleUserLeftConversation, handleMessageSent]);
 
     const scrollToBottom = () => {
         if (scrollViewRef.current) {
@@ -137,21 +209,6 @@ const ChatMessagesScreen = () => {
     const handleContentSizeChange = () => {
         scrollToBottom();
     };
-
-    // const fetchMessages = async () => {
-    //     try {
-    //         
-    //         console.log("Fetching messages from backend...");
-    //     } catch (error) {
-    //         console.log("error fetching messages", error);
-    //     }
-    // };
-
-    // useEffect(() => {
-    //     if (userId) {
-    //         fetchMessages();
-    //     }
-    // }, [userId]);
 
     useEffect(() => {
         const fetchRecepientData = async () => {
@@ -174,9 +231,12 @@ const ChatMessagesScreen = () => {
 
     const handleSend = async (messageType: any, content?: string) => {
         try {
-            if (!_id) return;
+            if (!_id || connectionStatus !== 'connected') {
+                Alert.alert("Error", "Not connected to chat server");
+                return;
+            }
 
-            // Create a new message object
+            // Create a new message object for immediate UI update
             const newMessage: ExtendedMessage = {
                 _id: `temp-${Date.now()}`,
                 messageType,
@@ -185,25 +245,26 @@ const ChatMessagesScreen = () => {
             };
 
             if (messageType === "text") {
+                if (!message.trim()) return;
                 newMessage.message = message;
-                // Send via socket
                 const sent = socketService.sendMessage(_id, message, "text");
                 if (!sent) {
                     Alert.alert("Error", "Could not send message. Please check your connection.");
+                    return;
                 }
             } else if (messageType === "image" && content) {
                 newMessage.imageUrl = content;
-                // Send via socket
                 const sent = socketService.sendImageMessage(_id, content);
                 if (!sent) {
                     Alert.alert("Error", "Could not send image. Please check your connection.");
+                    return;
                 }
             } else if (messageType === "audio" && content) {
                 newMessage.audioUrl = content;
-                // Send via socket
                 const sent = socketService.sendAudioMessage(_id, content);
                 if (!sent) {
                     Alert.alert("Error", "Could not send audio. Please check your connection.");
+                    return;
                 }
             }
 
@@ -261,19 +322,6 @@ const ChatMessagesScreen = () => {
         console.log("Initiating audio call with:", recepientData?.name);
     };
 
-    // Handle typing events with debouncing
-    const handleTyping = () => {
-        if (_id) {
-            socketService.startTyping(_id);
-        }
-    };
-
-    const handleStopTyping = () => {
-        if (_id) {
-            socketService.stopTyping(_id);
-        }
-    };
-
     // Debounced typing handler
     const debouncedTypingHandler = useRef<NodeJS.Timeout | null>(null);
 
@@ -281,7 +329,7 @@ const ChatMessagesScreen = () => {
         setMessage(text);
 
         // Notify typing with debounce
-        if (text.length > 0 && _id) {
+        if (text.length > 0 && _id && connectionStatus === 'connected') {
             if (debouncedTypingHandler.current) {
                 clearTimeout(debouncedTypingHandler.current);
             }
@@ -291,9 +339,39 @@ const ChatMessagesScreen = () => {
             debouncedTypingHandler.current = setTimeout(() => {
                 socketService.stopTyping(_id);
             }, 1000);
-        } else if (_id) {
+        } else if (_id && connectionStatus === 'connected') {
             socketService.stopTyping(_id);
         }
+    };
+
+    // NEW: Connection status indicator component
+    const ConnectionIndicator = () => {
+        if (connectionStatus === 'connecting') {
+            return (
+                <View className="flex-row items-center">
+                    <View className="w-2 h-2 bg-yellow-500 rounded-full mr-2" />
+                    <Text className="text-xs text-yellow-500">Connecting...</Text>
+                </View>
+            );
+        }
+
+        if (connectionStatus === 'disconnected') {
+            return (
+                <View className="flex-row items-center">
+                    <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
+                    <Text className="text-xs text-red-500">Disconnected</Text>
+                </View>
+            );
+        }
+
+        return (
+            <View className="flex-row items-center">
+                <View className={`w-2 h-2 rounded-full mr-2 ${isOtherUserOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
+                <Text className={`text-xs ${isOtherUserOnline ? 'text-green-500' : 'text-gray-500'}`}>
+                    {isOtherUserOnline ? 'Online' : 'Offline'}
+                </Text>
+            </View>
+        );
     };
 
     useLayoutEffect(() => {
@@ -329,9 +407,12 @@ const ChatMessagesScreen = () => {
                                 />
                             )}
 
-                            <Text className="ml-1.5 text-sm font-bold text-white">
-                                {recepientData?.name || 'Loading...'}
-                            </Text>
+                            <View className="ml-1.5">
+                                <Text className="text-sm font-bold text-white">
+                                    {recepientData?.name || 'Loading...'}
+                                </Text>
+                                <ConnectionIndicator />
+                            </View>
                         </View>
                     )}
                 </View>
@@ -366,7 +447,7 @@ const ChatMessagesScreen = () => {
                     </View>
                 ),
         });
-    }, [recepientData, selectedMessages, navigation]);
+    }, [recepientData, selectedMessages, navigation, connectionStatus, isOtherUserOnline]);
 
     if (!userId) {
         return null;
@@ -381,6 +462,15 @@ const ChatMessagesScreen = () => {
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View className="flex-1">
+                        {/* Connection Banner */}
+                        {connectionStatus === 'disconnected' && (
+                            <View className="bg-red-600 p-2">
+                                <Text className="text-white text-center text-sm">
+                                    Connection lost. Trying to reconnect...
+                                </Text>
+                            </View>
+                        )}
+
                         {/* Messages ScrollView */}
                         <ScrollView
                             ref={scrollViewRef}
@@ -423,12 +513,11 @@ const ChatMessagesScreen = () => {
                             <TextInput
                                 value={message}
                                 onChangeText={handleTextChange}
-                                onFocus={handleTyping}
-                                onBlur={handleStopTyping}
                                 className="flex-1 h-10 border border-gray-600 bg-gray-800 rounded-full px-4 text-white"
                                 placeholder="Type Your message..."
                                 placeholderTextColor="#9ca3af"
                                 multiline
+                                editable={connectionStatus === 'connected'}
                             />
 
                             <View className="flex-row items-center gap-2 mx-2">
@@ -439,24 +528,28 @@ const ChatMessagesScreen = () => {
                                     )}
                                     name="camera"
                                     size={24}
-                                    color="#2563eb"
+                                    color={connectionStatus === 'connected' ? "#2563eb" : "#6b7280"}
                                 />
                                 <Pressable
-                                    onPressIn={handleStartRecording} // Start recording when pressed
-                                    onPressOut={handleStopRecording} // Stop recording when released
+                                    onPressIn={handleStartRecording}
+                                    onPressOut={handleStopRecording}
+                                    disabled={connectionStatus !== 'connected'}
                                 >
                                     <Feather
                                         name="mic"
                                         size={24}
-                                        color={isRecording ? "red" : "#2563eb"}
+                                        color={isRecording ? "red" : connectionStatus === 'connected' ? "#2563eb" : "#6b7280"}
                                     />
                                 </Pressable>
                             </View>
 
                             <Pressable
                                 onPress={() => handleSend("text")}
-                                disabled={message.trim() === ""}
-                                className={`py-2 px-3 rounded-full ${message.trim() === "" ? "bg-gray-700" : "bg-blue-600"}`}
+                                disabled={message.trim() === "" || connectionStatus !== 'connected'}
+                                className={`py-2 px-3 rounded-full ${message.trim() === "" || connectionStatus !== 'connected'
+                                        ? "bg-gray-700"
+                                        : "bg-blue-600"
+                                    }`}
                             >
                                 <Text className="text-white font-bold">Send</Text>
                             </Pressable>
