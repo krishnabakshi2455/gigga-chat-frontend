@@ -102,11 +102,6 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
                         borderRadius: 28,
                     }}
                 />
-                {/* Online status indicator */}
-                <View
-                    className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2"
-                    style={{ borderColor: '#0a0a0a' }}
-                />
             </View>
 
             {/* Message content */}

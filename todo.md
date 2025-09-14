@@ -1,7 +1,4 @@
-this exp://172.16.2.85:8081 causes the android login problem becaused google accepts only https fix it
 0. important - update the google claud console for ios
-
-
 * check the naviagtion through out the application
 * add a notification system to send notification to the phone screen both lock and home screen
-* need to add multer storage for image and audio storing 
+* need to add cloudinary for the image , audio , video storing and then to get the urls

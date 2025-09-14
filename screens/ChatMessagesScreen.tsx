@@ -25,6 +25,7 @@ import { socketService } from "../src/services/socketServices";
 import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
 import MessageBubble from "../components/chatMessage/MessageBubble";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
+import { messageService } from "../src/services/MessageService";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -40,83 +41,39 @@ const ChatMessagesScreen = () => {
     const [recording, setRecording] = useState<any>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
-    const [isOtherUserOnline, setIsOtherUserOnline] = useState(false); // NEW: Track if other user is online
-    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting'); // NEW: Connection status
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
     const scrollViewRef = useRef<ScrollView>(null);
-    // useEffect(() => {
-    //     console.log("=== CHAT DEBUG INFO ===");
-    //     console.log("🫵 Your MongoDB ID:", userId);
-    //     console.log("👤 Other User's MongoDB ID:", _id);
-    //     console.log("💬 Chat between:", userId, "and", _id);
-    //     console.log("📝 Recipient Data:", { _id, name, image });
-    //     console.log("=====================");
-    // }, [userId, _id, name, image]);
+
+    // Create handlers using the message service
     const handleReceiveMessage = useCallback((data: any) => {
-        // Only accept messages from the current conversation
-        if (data.senderId !== _id) return;
-
-        const newMessage: ExtendedMessage = {
-            _id: Date.now().toString(),
-            messageType: data.messageType || 'text',
-            senderId: { _id: data.senderId },
-            timeStamp: data.timestamp || new Date().toISOString(),
-            message: data.message,
-            imageUrl: data.messageType === 'image' ? data.message : undefined,
-            audioUrl: data.messageType === 'audio' ? data.message : undefined
-        };
-
-        setMessages(prev => [...prev, newMessage]);
-        scrollToBottom();
+        messageService.handleReceiveMessage(data, _id, setMessages, scrollToBottom);
     }, [_id]);
 
     const handleUserTyping = useCallback((data: any) => {
-        if (data.userId === _id) {
-            setIsTyping(data.isTyping);
-
-            if (data.isTyping && typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
-
-            if (data.isTyping) {
-                typingTimeoutRef.current = setTimeout(() => {
-                    setIsTyping(false);
-                }, 2000);
-            }
-        }
+        messageService.handleUserTyping(data, _id, setIsTyping);
     }, [_id]);
 
-    // NEW: Handle conversation status updates
     const handleConversationJoined = useCallback((data: any) => {
-        console.log('✅ Conversation joined:', data);
-        setIsOtherUserOnline(data.isOtherUserOnline);
-        setConnectionStatus('connected');
+        messageService.handleConversationJoined(data, setIsOtherUserOnline, setConnectionStatus);
     }, []);
 
     const handleUserJoinedConversation = useCallback((data: any) => {
-        console.log('👥 User joined conversation:', data);
-        if (data.connectedUsers.includes(_id)) {
-            setIsOtherUserOnline(true);
-        }
+        messageService.handleUserJoinedConversation(data, _id, setIsOtherUserOnline);
     }, [_id]);
 
     const handleUserLeftConversation = useCallback((data: any) => {
-        console.log('👋 User left conversation:', data);
-        if (data.userId === _id) {
-            setIsOtherUserOnline(false);
-        }
+        messageService.handleUserLeftConversation(data, _id, setIsOtherUserOnline);
     }, [_id]);
 
     const handleMessageSent = useCallback((data: any) => {
-        console.log('📤 Message sent confirmation:', data);
-        // You can show delivery status here
-        if (data.isReceiverOnline) {
-            console.log('✅ Message delivered - receiver is online');
-        } else {
-            console.log('📱 Message sent - receiver is offline');
-        }
+        messageService.handleMessageSent(data);
     }, []);
+
+    const handleTextChange = (text: string) => {
+        messageService.handleTextChange(text, setMessage, _id, connectionStatus);
+    };
 
     useEffect(() => {
         requestPermissions();
@@ -192,9 +149,8 @@ const ChatMessagesScreen = () => {
             }
             socketService.removeAllListeners();
 
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
+            // Clean up message service
+            messageService.cleanup();
         };
     }, [userId, userToken, _id, handleReceiveMessage, handleUserTyping, handleConversationJoined, handleUserJoinedConversation, handleUserLeftConversation, handleMessageSent]);
 
@@ -230,53 +186,17 @@ const ChatMessagesScreen = () => {
     }, [_id, name, image, userId]);
 
     const handleSend = async (messageType: any, content?: string) => {
-        try {
-            if (!_id || connectionStatus !== 'connected') {
-                Alert.alert("Error", "Not connected to chat server");
-                return;
-            }
-
-            // Create a new message object for immediate UI update
-            const newMessage: ExtendedMessage = {
-                _id: `temp-${Date.now()}`,
-                messageType,
-                senderId: { _id: userId },
-                timeStamp: new Date().toISOString(),
-            };
-
-            if (messageType === "text") {
-                if (!message.trim()) return;
-                newMessage.message = message;
-                const sent = socketService.sendMessage(_id, message, "text");
-                if (!sent) {
-                    Alert.alert("Error", "Could not send message. Please check your connection.");
-                    return;
-                }
-            } else if (messageType === "image" && content) {
-                newMessage.imageUrl = content;
-                const sent = socketService.sendImageMessage(_id, content);
-                if (!sent) {
-                    Alert.alert("Error", "Could not send image. Please check your connection.");
-                    return;
-                }
-            } else if (messageType === "audio" && content) {
-                newMessage.audioUrl = content;
-                const sent = socketService.sendAudioMessage(_id, content);
-                if (!sent) {
-                    Alert.alert("Error", "Could not send audio. Please check your connection.");
-                    return;
-                }
-            }
-
-            // Add to local state for immediate UI update
-            setMessages(prev => [...prev, newMessage]);
-            setMessage("");
-            scrollToBottom();
-
-        } catch (error) {
-            console.log("error in sending the message", error);
-            Alert.alert("Error", "Failed to send message");
-        }
+        await messageService.sendMessage(
+            messageType,
+            content,
+            _id,
+            userId,
+            message,
+            setMessages,
+            setMessage,
+            scrollToBottom,
+            connectionStatus
+        );
     };
 
     const handleImageSelected = (uri: string) => {
@@ -322,29 +242,7 @@ const ChatMessagesScreen = () => {
         console.log("Initiating audio call with:", recepientData?.name);
     };
 
-    // Debounced typing handler
-    const debouncedTypingHandler = useRef<NodeJS.Timeout | null>(null);
-
-    const handleTextChange = (text: string) => {
-        setMessage(text);
-
-        // Notify typing with debounce
-        if (text.length > 0 && _id && connectionStatus === 'connected') {
-            if (debouncedTypingHandler.current) {
-                clearTimeout(debouncedTypingHandler.current);
-            }
-
-            socketService.startTyping(_id);
-
-            debouncedTypingHandler.current = setTimeout(() => {
-                socketService.stopTyping(_id);
-            }, 1000);
-        } else if (_id && connectionStatus === 'connected') {
-            socketService.stopTyping(_id);
-        }
-    };
-
-    // NEW: Connection status indicator component
+    // Connection status indicator component
     const ConnectionIndicator = () => {
         if (connectionStatus === 'connecting') {
             return (
@@ -547,8 +445,8 @@ const ChatMessagesScreen = () => {
                                 onPress={() => handleSend("text")}
                                 disabled={message.trim() === "" || connectionStatus !== 'connected'}
                                 className={`py-2 px-3 rounded-full ${message.trim() === "" || connectionStatus !== 'connected'
-                                        ? "bg-gray-700"
-                                        : "bg-blue-600"
+                                    ? "bg-gray-700"
+                                    : "bg-blue-600"
                                     }`}
                             >
                                 <Text className="text-white font-bold">Send</Text>
