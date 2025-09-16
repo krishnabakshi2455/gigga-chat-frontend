@@ -4,7 +4,7 @@ import { useAtom } from 'jotai';
 import { useNavigation } from "@react-navigation/native";
 import { FriendRequestProps } from "../src/lib/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import config from "../config";
+import { BACKEND_URL } from "@env";
 
 const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, setFriendRequests }) => {
     const [userId] = useAtom(userIdAtom);
@@ -18,7 +18,7 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
         try {
             setAcceptLoading(true);
 
-            const response = await fetch(`${config.BACKEND_URL}/friend-request/accept`, {
+            const response = await fetch(`${BACKEND_URL}/friend-request/accept`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -49,7 +49,7 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
         try {
             setRejectLoading(true);
 
-            const response = await fetch(`${config.BACKEND_URL}/friend-request/reject`, {
+            const response = await fetch(`${BACKEND_URL}/friend-request/reject`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ senderId: friendRequestId, recepientId: userId }),

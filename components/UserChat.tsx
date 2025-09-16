@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useAtom } from "jotai";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import config from "../config";
+import { BACKEND_URL } from "@env";
 
 interface Message {
     _id: string;
@@ -32,7 +32,7 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
 
         try {
             const response = await fetch(
-                `${config.BACKEND_URL}/messages/${userId}/${item._id}`
+                `${BACKEND_URL}/messages/${userId}/${item._id}`
             );
             const data = await response.json();
 

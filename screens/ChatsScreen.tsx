@@ -3,9 +3,9 @@ import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
-import config from "../config";
 import { AcceptedFriend } from "../src/lib/types";
 import UserChat from "../components/UserChat";
+import { BACKEND_URL } from "@env";
 
 
 const ChatsScreen: React.FC = () => {
@@ -19,7 +19,7 @@ const ChatsScreen: React.FC = () => {
 
             try {
                 const response = await fetch(
-                    `${config.BACKEND_URL}/accepted-friends/${userId}`
+                    `${BACKEND_URL}/accepted-friends/${userId}`
                 );
                 const data = await response.json();
 

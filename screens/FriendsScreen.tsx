@@ -4,8 +4,8 @@ import { useAtom } from 'jotai';
 import axios, { AxiosResponse } from "axios";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { ApiResponse, FriendRequestItem } from "../src/lib/types";
-import config from "../config";
 import FriendRequest from "../components/FriendRequest";
+import { BACKEND_URL } from "@env";
 
 const FriendsScreen: React.FC = () => {
     const [userId] = useAtom(userIdAtom);
@@ -27,7 +27,7 @@ const FriendsScreen: React.FC = () => {
             setError(null);
 
             const response: AxiosResponse<ApiResponse[]> = await axios.get(
-                `${config.BACKEND_URL}/friend-request/${userId}`
+                `${BACKEND_URL}/friend-request/${userId}`
             );
 
             if (response.status === 200) {

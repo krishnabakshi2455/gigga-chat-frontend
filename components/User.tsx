@@ -3,8 +3,8 @@ import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { FriendRequest, UserProps } from "../src/lib/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import config from "../config";
-// Remove the friend_request_atom import and usage since we only want to show notifications for incoming requests
+import { BACKEND_URL } from "@env";
+
 
 const User: React.FC<UserProps> = ({ item }) => {
     const [userId] = useAtom(userIdAtom);
@@ -15,7 +15,7 @@ const User: React.FC<UserProps> = ({ item }) => {
         if (!userId) return;
         try {
             const response = await fetch(
-                `${config.BACKEND_URL}/friend-requests/sent/${userId}`
+                `${BACKEND_URL}/friend-requests/sent/${userId}`
             );
             const data = await response.json();
             if (response.ok) {
@@ -35,7 +35,7 @@ const User: React.FC<UserProps> = ({ item }) => {
     const fetchUserFriends = async () => {
         if (!userId) return;
         try {
-            const response = await fetch(`${config.BACKEND_URL}/friends/${userId}`);
+            const response = await fetch(`${BACKEND_URL}/friends/${userId}`);
             const data = await response.json();
             if (response.ok) {
                 setUserFriends(data);
@@ -53,7 +53,7 @@ const User: React.FC<UserProps> = ({ item }) => {
 
     const sendFriendRequest = async (currentUserId: string, selectedUserId: string) => {
         try {
-            const response = await fetch(`${config.BACKEND_URL}/friend-request`, {
+            const response = await fetch(`${BACKEND_URL}/friend-request`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

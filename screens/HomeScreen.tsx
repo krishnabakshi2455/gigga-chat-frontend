@@ -7,9 +7,9 @@ import { useAtom } from "jotai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
-import config from "../config";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import User from "../components/User";
+import { BACKEND_URL } from "@env";
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -76,7 +76,7 @@ const HomeScreen = () => {
   // Function to check for incoming friend requests and compare with read IDs
   const checkForIncomingRequests = async (currentUserId: string) => {
     try {
-      const response = await axios.get(`${config.BACKEND_URL}/friend-request/${currentUserId}`);
+      const response = await axios.get(`${BACKEND_URL}/friend-request/${currentUserId}`);
 
       if (response.status === 200 && response.data && response.data.length > 0) {
         // Get the IDs of current friend requests
@@ -116,7 +116,7 @@ const HomeScreen = () => {
 
       // Fetch users
       try {
-        const response = await axios.get(`${config.BACKEND_URL}/users/${decodedUserId}`);
+        const response = await axios.get(`${BACKEND_URL}/users/${decodedUserId}`);
         setUsers(response.data);
 
         // Check for friend requests after getting users
@@ -132,7 +132,7 @@ const HomeScreen = () => {
   const handleFriendsPress = async () => {
     // Mark all current friend requests as "read" when user clicks Friends
     try {
-      const response = await axios.get(`${config.BACKEND_URL}/friend-request/${userId}`);
+      const response = await axios.get(`${BACKEND_URL}/friend-request/${userId}`);
 
       if (response.status === 200 && response.data && response.data.length > 0) {
         const currentRequestIds = response.data.map((request: any) => request.id || request._id);

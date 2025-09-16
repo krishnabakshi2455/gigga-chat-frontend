@@ -12,16 +12,16 @@ import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import config from "../config";
 import { useAtom } from "jotai";
 import { userTokenAtom } from "../src/lib/store/userId.store";
+import { BACKEND_URL, GOOGLE_Web_Client_ID } from "@env";
 
 // Configure Google Sign-In 
 GoogleSignin.configure({
-    webClientId: config.Web_Client_ID,
+    // webClientId: config.Web_Client_ID,
+    webClientId: GOOGLE_Web_Client_ID,
     offlineAccess: true,
 });
-
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -166,7 +166,7 @@ const LoginScreen = () => {
         };
 
         axios
-            .post(`${config.BACKEND_URL}/login`, user)
+            .post(`${BACKEND_URL}/login`, user)
             .then(async (response) => {
                 const token = response.data.token;
                 await AsyncStorage.setItem("authToken", token);
@@ -210,7 +210,7 @@ const LoginScreen = () => {
 
             // console.log('Sending to backend:', googleUser);
 
-            const response = await axios.post(`${config.BACKEND_URL}/googleauth`, googleUser);
+            const response = await axios.post(`${BACKEND_URL}/googleauth`, googleUser);
             const token = response.data.token;
 
             await AsyncStorage.setItem("authToken", token);

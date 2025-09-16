@@ -13,7 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import config from "../config";
+import { BACKEND_URL } from "@env";
 
 const RegisterScreen = () => {
   const [email, setEmail] = useState("");
@@ -109,7 +109,7 @@ const RegisterScreen = () => {
     };
 
     axios
-      .post(`${config.BACKEND_URL}/register`, user)
+      .post(`${BACKEND_URL}/register`, user)
       .then((response) => {
         console.log(response);
         Alert.alert(
@@ -157,7 +157,7 @@ const RegisterScreen = () => {
       };
 
       // Call your existing backend endpoint
-      const response = await axios.post(`${config.BACKEND_URL}/googleauth`, googleUser);
+      const response = await axios.post(`${BACKEND_URL}/googleauth`, googleUser);
 
       const token = response.data.token;
       await AsyncStorage.setItem("authToken", token);
