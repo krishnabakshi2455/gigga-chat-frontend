@@ -4,8 +4,8 @@ import { useAtom } from 'jotai';
 import axios, { AxiosResponse } from "axios";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { ApiResponse, FriendRequestItem } from "../src/lib/types";
-import FriendRequest from "../components/FriendRequest";
 import { BACKEND_URL } from "@env";
+import FriendRequest from "../src/components/FriendRequest";
 
 const FriendsScreen: React.FC = () => {
     const [userId] = useAtom(userIdAtom);

@@ -4,8 +4,8 @@ import { useAtom } from "jotai";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
 import { AcceptedFriend } from "../src/lib/types";
-import UserChat from "../components/UserChat";
 import { BACKEND_URL } from "@env";
+import UserChat from "../src/components/UserChat";
 
 
 const ChatsScreen: React.FC = () => {

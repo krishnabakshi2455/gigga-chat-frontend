@@ -22,10 +22,10 @@ import { ExtendedMessage, RecipientData } from "../src/lib/types";
 import { requestPermissions } from "../src/lib/utils/permissionUtils";
 import { deleteMessages } from "../src/lib/utils/messageUtils";
 import { socketService } from "../src/services/socketServices";
-import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
-import MessageBubble from "../components/chatMessage/MessageBubble";
-import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
 import { messageService } from "../src/services/MessageService";
+import { startRecording, stopRecording } from "../src/components/chatMessage/AudioRecorder";
+import MessageBubble from "../src/components/chatMessage/MessageBubble";
+import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/components/chatMessage/ImagePicker";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
