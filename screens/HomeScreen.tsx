@@ -9,7 +9,7 @@ import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { BACKEND_URL } from "@env";
-import User from "../src/components/User";
+import User from "../components/User";
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();

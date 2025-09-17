@@ -2,9 +2,9 @@ import { Text, View, Pressable, Image, Alert } from "react-native";
 import React, { useState } from "react";
 import { useAtom } from 'jotai';
 import { useNavigation } from "@react-navigation/native";
+import { BACKEND_URL } from "@env";
 import { FriendRequestProps } from "../src/lib/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import { BACKEND_URL } from "@env";
 
 const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, setFriendRequests }) => {
     const [userId] = useAtom(userIdAtom);

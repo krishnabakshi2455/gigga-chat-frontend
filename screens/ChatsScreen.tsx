@@ -5,7 +5,7 @@ import { userIdAtom } from "../src/lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
 import { AcceptedFriend } from "../src/lib/types";
 import { BACKEND_URL } from "@env";
-import UserChat from "../src/components/UserChat";
+import UserChat from "../components/UserChat";
 
 
 const ChatsScreen: React.FC = () => {

@@ -1,6 +1,7 @@
 import { Alert } from "react-native";
 import { socketService } from "../services/socketServices";
 import { ExtendedMessage } from "../lib/types";
+// import { v4 as uuidv4 } from 'uuid';
 
 export class MessageService {
     private typingTimeoutRef: NodeJS.Timeout | null = null;
@@ -10,10 +11,12 @@ export class MessageService {
     handleReceiveMessage = (
         data: any,
         _id: string,
+        currentUserId:string,
         setMessages: React.Dispatch<React.SetStateAction<ExtendedMessage[]>>,
         scrollToBottom: () => void
     ) => {
-        if (data.senderId !== _id) return;
+        // if (data.senderId !== _id) return;
+        if (data.recipientId !== currentUserId && data.senderId === currentUserId) return;
 
         const newMessage: ExtendedMessage = {
             _id: Date.now().toString(),

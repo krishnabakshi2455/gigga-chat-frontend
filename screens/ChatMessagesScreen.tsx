@@ -23,9 +23,9 @@ import { requestPermissions } from "../src/lib/utils/permissionUtils";
 import { deleteMessages } from "../src/lib/utils/messageUtils";
 import { socketService } from "../src/services/socketServices";
 import { messageService } from "../src/services/MessageService";
-import { startRecording, stopRecording } from "../src/components/chatMessage/AudioRecorder";
-import MessageBubble from "../src/components/chatMessage/MessageBubble";
-import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/components/chatMessage/ImagePicker";
+import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
+import MessageBubble from "../components/chatMessage/MessageBubble";
+import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -48,7 +48,7 @@ const ChatMessagesScreen = () => {
 
     // Create handlers using the message service
     const handleReceiveMessage = useCallback((data: any) => {
-        messageService.handleReceiveMessage(data, _id, setMessages, scrollToBottom);
+        messageService.handleReceiveMessage(data, _id,userId, setMessages, scrollToBottom);
     }, [_id]);
 
     const handleUserTyping = useCallback((data: any) => {

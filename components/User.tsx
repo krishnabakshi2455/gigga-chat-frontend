@@ -1,9 +1,9 @@
 import { Text, View, Pressable, Image } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
+import { BACKEND_URL } from "@env";
 import { FriendRequest, UserProps } from "../src/lib/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import { BACKEND_URL } from "@env";
 
 
 const User: React.FC<UserProps> = ({ item }) => {
