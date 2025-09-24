@@ -1,5 +1,5 @@
+import { BACKEND_URL } from '@env';
 import { io, Socket } from 'socket.io-client';
-import config from '../../config';
 
 class SocketService {
     private static instance: SocketService;
@@ -24,7 +24,7 @@ class SocketService {
             }
 
             // Connect to server
-            this.socket = io(config.BACKEND_URL, {
+            this.socket = io(BACKEND_URL, {
                 auth: {
                     token: token,    
                     userId: userId  

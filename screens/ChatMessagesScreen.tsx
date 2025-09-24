@@ -23,6 +23,7 @@ import { requestPermissions } from "../src/lib/utils/permissionUtils";
 import { deleteMessages } from "../src/lib/utils/messageUtils";
 import { socketService } from "../src/services/socketServices";
 import { messageService } from "../src/services/MessageService";
+import { cloudinaryService } from "../src/services/CloudinaryService";
 import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
 import MessageBubble from "../components/chatMessage/MessageBubble";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
@@ -43,13 +44,37 @@ const ChatMessagesScreen = () => {
     const [isTyping, setIsTyping] = useState(false);
     const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+    const [uploadingMedia, setUploadingMedia] = useState(false);
 
     const scrollViewRef = useRef<ScrollView>(null);
 
+    // Media Upload Handlers
+    const handleImageUpload = async (imageUri: string) => {
+        const cloudinaryUrl = await cloudinaryService.uploadImage(imageUri, {
+            onUploadStart: () => setUploadingMedia(true),
+            onUploadEnd: () => setUploadingMedia(false)
+        });
+
+        if (cloudinaryUrl) {
+            await handleSend("image", cloudinaryUrl);
+        }
+    };
+
+    const handleAudioUpload = async (audioUri: string) => {
+        const cloudinaryUrl = await cloudinaryService.uploadAudio(audioUri, {
+            onUploadStart: () => setUploadingMedia(true),
+            onUploadEnd: () => setUploadingMedia(false)
+        });
+
+        if (cloudinaryUrl) {
+            await handleSend("audio", cloudinaryUrl);
+        }
+    };
+
     // Create handlers using the message service
     const handleReceiveMessage = useCallback((data: any) => {
-        messageService.handleReceiveMessage(data, _id,userId, setMessages, scrollToBottom);
-    }, [_id]);
+        messageService.handleReceiveMessage(data, _id, userId, setMessages, scrollToBottom);
+    }, [_id, userId]);
 
     const handleUserTyping = useCallback((data: any) => {
         messageService.handleUserTyping(data, _id, setIsTyping);
@@ -76,6 +101,13 @@ const ChatMessagesScreen = () => {
     };
 
     useEffect(() => {
+        // Check if Cloudinary is properly configured
+        if (!cloudinaryService.isConfigured()) {
+            console.warn('⚠️ Cloudinary is not properly configured. Media uploads will fail.');
+            const configStatus = cloudinaryService.getConfigurationStatus();
+            console.log('Cloudinary config status:', configStatus);
+        }
+
         requestPermissions();
         scrollToBottom();
 
@@ -177,8 +209,11 @@ const ChatMessagesScreen = () => {
                     image: image
                 };
                 setRecepientData(simulatedRecipient);
+
+                // Add debug logging to see what's happening
+                console.log('Recipient image URL:', image);
             } catch (error) {
-                console.log("error showing the accepted friends", error);
+                console.log("Error fetching recipient data", error);
             }
         };
 
@@ -200,7 +235,7 @@ const ChatMessagesScreen = () => {
     };
 
     const handleImageSelected = (uri: string) => {
-        handleSend("image", uri);
+        handleImageUpload(uri);
     };
 
     const handleStartRecording = async () => {
@@ -210,7 +245,7 @@ const ChatMessagesScreen = () => {
     const handleStopRecording = async () => {
         const uri = await stopRecording(recording, setIsRecording);
         if (uri) {
-            handleSend("audio", uri);
+            handleAudioUpload(uri);
         }
         setRecording(null);
     };
@@ -342,10 +377,16 @@ const ChatMessagesScreen = () => {
                             color="#2563eb"
                             onPress={handleAudioCall}
                         />
+                        {uploadingMedia && (
+                            <View className="flex-row items-center">
+                                <Text className="text-xs text-blue-500 mr-2">Uploading...</Text>
+                                <Ionicons name="cloud-upload" size={16} color="#2563eb" />
+                            </View>
+                        )}
                     </View>
                 ),
         });
-    }, [recepientData, selectedMessages, navigation, connectionStatus, isOtherUserOnline]);
+    }, [recepientData, selectedMessages, navigation, connectionStatus, isOtherUserOnline, uploadingMedia]);
 
     if (!userId) {
         return null;
@@ -365,6 +406,16 @@ const ChatMessagesScreen = () => {
                             <View className="bg-red-600 p-2">
                                 <Text className="text-white text-center text-sm">
                                     Connection lost. Trying to reconnect...
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* Uploading Indicator */}
+                        {uploadingMedia && (
+                            <View className="bg-blue-600 p-2 flex-row items-center justify-center">
+                                <Ionicons name="cloud-upload" size={16} color="white" />
+                                <Text className="text-white text-center text-sm ml-2">
+                                    Uploading media to Cloudinary...
                                 </Text>
                             </View>
                         )}
@@ -415,7 +466,7 @@ const ChatMessagesScreen = () => {
                                 placeholder="Type Your message..."
                                 placeholderTextColor="#9ca3af"
                                 multiline
-                                editable={connectionStatus === 'connected'}
+                                editable={connectionStatus === 'connected' && !uploadingMedia}
                             />
 
                             <View className="flex-row items-center gap-2 mx-2">
@@ -426,25 +477,26 @@ const ChatMessagesScreen = () => {
                                     )}
                                     name="camera"
                                     size={24}
-                                    color={connectionStatus === 'connected' ? "#2563eb" : "#6b7280"}
+                                    color={connectionStatus === 'connected' && !uploadingMedia ? "#2563eb" : "#6b7280"}
+                                    disabled={uploadingMedia}
                                 />
                                 <Pressable
                                     onPressIn={handleStartRecording}
                                     onPressOut={handleStopRecording}
-                                    disabled={connectionStatus !== 'connected'}
+                                    disabled={connectionStatus !== 'connected' || uploadingMedia}
                                 >
                                     <Feather
                                         name="mic"
                                         size={24}
-                                        color={isRecording ? "red" : connectionStatus === 'connected' ? "#2563eb" : "#6b7280"}
+                                        color={isRecording ? "red" : connectionStatus === 'connected' && !uploadingMedia ? "#2563eb" : "#6b7280"}
                                     />
                                 </Pressable>
                             </View>
 
                             <Pressable
                                 onPress={() => handleSend("text")}
-                                disabled={message.trim() === "" || connectionStatus !== 'connected'}
-                                className={`py-2 px-3 rounded-full ${message.trim() === "" || connectionStatus !== 'connected'
+                                disabled={message.trim() === "" || connectionStatus !== 'connected' || uploadingMedia}
+                                className={`py-2 px-3 rounded-full ${message.trim() === "" || connectionStatus !== 'connected' || uploadingMedia
                                     ? "bg-gray-700"
                                     : "bg-blue-600"
                                     }`}

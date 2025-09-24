@@ -22,6 +22,8 @@ GoogleSignin.configure({
     webClientId: GOOGLE_Web_Client_ID,
     offlineAccess: true,
 });
+
+
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

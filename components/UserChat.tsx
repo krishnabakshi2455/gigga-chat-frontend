@@ -7,8 +7,10 @@ import { userIdAtom } from "../src/lib/store/userId.store";
 
 interface Message {
     _id: string;
-    messageType: "text" | "image";
+    messageType: "text" | "image" | "audio";
     message?: string;
+    imageUrl?: string;
+    audioUrl?: string;
     timeStamp: string;
 }
 
@@ -25,6 +27,7 @@ interface UserChatProps {
 const UserChat: React.FC<UserChatProps> = ({ item }) => {
     const [userId] = useAtom(userIdAtom);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [imageError, setImageError] = useState(false);
     const navigation = useNavigation<any>();
 
     const fetchMessages = async () => {
@@ -52,21 +55,44 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
 
     const getLastMessage = (): Message | undefined => {
         const userMessages = messages.filter(
-            (message) => message.messageType === "text"
+            (message) => message.messageType === "text" || message.messageType === "image" || message.messageType === "audio"
         );
 
         const n = userMessages.length;
         return userMessages[n - 1];
     };
 
+    const getLastMessagePreview = (message: Message): string => {
+        switch (message.messageType) {
+            case 'text':
+                return message.message || 'Message';
+            case 'image':
+                return '📷 Photo';
+            case 'audio':
+                return '🎤 Audio';
+            default:
+                return 'Message';
+        }
+    };
+
     const lastMessage = getLastMessage();
 
     const formatTime = (time: string): string => {
-        const options: Intl.DateTimeFormatOptions = {
-            hour: "numeric",
-            minute: "numeric"
-        };
-        return new Date(time).toLocaleString("en-IN", options);
+        const messageTime = new Date(time);
+        const now = new Date();
+        const diffInHours = (now.getTime() - messageTime.getTime()) / (1000 * 60 * 60);
+
+        if (diffInHours < 24) {
+            return messageTime.toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            return messageTime.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit'
+            });
+        }
     };
 
     if (!userId) {
@@ -78,30 +104,32 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
             onPress={() =>
                 navigation.navigate("Messages", {
                     _id: item._id,
-                    name: item.name,   
-                    image: item.image   
+                    name: item.name,
+                    image: item.image
                 })
             }
-            className="flex-row items-center py-4 px-5 border-b border-gray-800"
+            className="flex-row items-center py-4 px-5 border-b border-gray-800 active:bg-gray-900"
             style={{
                 backgroundColor: '#0a0a0a',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.1,
-                shadowRadius: 1,
             }}
+            android_ripple={{ color: '#1f2937' }}
         >
             {/* Avatar with online indicator */}
             <View className="relative mr-4">
-                <Image
-                    className="w-14 h-14 rounded-full border-2 border-gray-700"
-                    source={{ uri: item?.image }}
-                    style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 28,
-                    }}
-                />
+                {item.image && !imageError ? (
+                    <Image
+                        className="w-14 h-14 rounded-full border-2 border-gray-700"
+                        source={{ uri: item.image }}
+                        onError={() => setImageError(true)}
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View className="w-14 h-14 rounded-full border-2 border-gray-700 bg-gray-600 items-center justify-center">
+                        <Text className="text-white text-lg font-bold">
+                            {item?.name?.charAt(0)?.toUpperCase() || 'U'}
+                        </Text>
+                    </View>
+                )}
             </View>
 
             {/* Message content */}
@@ -114,7 +142,7 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
 
                 {lastMessage ? (
                     <Text className="text-sm text-gray-400 leading-5" numberOfLines={2}>
-                        {lastMessage?.message}
+                        {getLastMessagePreview(lastMessage)}
                     </Text>
                 ) : (
                     <Text className="text-sm text-gray-500 italic">
