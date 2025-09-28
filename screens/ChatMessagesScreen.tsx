@@ -3,20 +3,17 @@ import {
     View,
     ScrollView,
     KeyboardAvoidingView,
-    Image,
     Alert,
     Platform,
     Keyboard,
     TouchableWithoutFeedback,
-    TextInput,
-    Pressable,
     AppState
 } from "react-native";
 import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAtom } from "jotai";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Ionicons, FontAwesome, MaterialIcons, Entypo, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store";
 import { ExtendedMessage, RecipientData } from "../src/lib/types";
 import { requestPermissions } from "../src/lib/utils/permissionUtils";
@@ -24,9 +21,11 @@ import { deleteMessages } from "../src/lib/utils/messageUtils";
 import { socketService } from "../src/services/socketServices";
 import { messageService } from "../src/services/MessageService";
 import { cloudinaryService } from "../src/services/CloudinaryService";
-import { startRecording, stopRecording } from "../components/chatMessage/AudioRecorder";
-import MessageBubble from "../components/chatMessage/MessageBubble";
-import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../components/chatMessage/ImagePicker";
+import { startRecording, stopRecording } from "../src/lib/hooks/AudioRecorder";
+import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/lib/hooks/ImagePicker";
+import MessageBubble from "../src/lib/hooks/MessageBubble";
+import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";
+import { MessageInput } from "../components/chatMessage/MessageInput";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -266,7 +265,7 @@ const ChatMessagesScreen = () => {
     };
 
     const handleDeleteMessages = () => {
-        deleteMessages(selectedMessages, setMessages, setSelectedMessages);
+        deleteMessages(selectedMessages, setMessages, setSelectedMessages,);
     };
 
     const handleVideoCall = () => {
@@ -277,33 +276,10 @@ const ChatMessagesScreen = () => {
         console.log("Initiating audio call with:", recepientData?.name);
     };
 
-    // Connection status indicator component
-    const ConnectionIndicator = () => {
-        if (connectionStatus === 'connecting') {
-            return (
-                <View className="flex-row items-center">
-                    <View className="w-2 h-2 bg-yellow-500 rounded-full mr-2" />
-                    <Text className="text-xs text-yellow-500">Connecting...</Text>
-                </View>
-            );
-        }
-
-        if (connectionStatus === 'disconnected') {
-            return (
-                <View className="flex-row items-center">
-                    <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
-                    <Text className="text-xs text-red-500">Disconnected</Text>
-                </View>
-            );
-        }
-
-        return (
-            <View className="flex-row items-center">
-                <View className={`w-2 h-2 rounded-full mr-2 ${isOtherUserOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
-                <Text className={`text-xs ${isOtherUserOnline ? 'text-green-500' : 'text-gray-500'}`}>
-                    {isOtherUserOnline ? 'Online' : 'Offline'}
-                </Text>
-            </View>
+    const handleShowImagePicker = () => {
+        showImagePickerOptions(
+            () => openCamera(handleImageSelected),
+            () => pickImageFromLibrary(handleImageSelected)
         );
     };
 
@@ -317,76 +293,24 @@ const ChatMessagesScreen = () => {
                 color: '#2563eb',
             },
             headerLeft: () => (
-                <View className="flex-row items-center gap-2.5">
-                    <Ionicons
-                        onPress={() => navigation.goBack()}
-                        name="arrow-back"
-                        size={24}
-                        color="#2563eb"
-                    />
-
-                    {selectedMessages.length > 0 ? (
-                        <View>
-                            <Text className="text-base font-medium text-blue-600">
-                                {selectedMessages.length}
-                            </Text>
-                        </View>
-                    ) : (
-                        <View className="flex-row items-center">
-                            {recepientData?.image && (
-                                <Image
-                                    className="w-8 h-8 rounded-full"
-                                    source={{ uri: recepientData.image }}
-                                />
-                            )}
-
-                            <View className="ml-1.5">
-                                <Text className="text-sm font-bold text-white">
-                                    {recepientData?.name || 'Loading...'}
-                                </Text>
-                                <ConnectionIndicator />
-                            </View>
-                        </View>
-                    )}
-                </View>
+                <ChatHeaderLeft
+                    selectedMessages={selectedMessages}
+                    recepientData={recepientData}
+                    connectionStatus={connectionStatus}
+                    isOtherUserOnline={isOtherUserOnline}
+                    onBack={() => navigation.goBack()}
+                />
             ),
-            headerRight: () =>
-                selectedMessages.length > 0 ? (
-                    <View className="flex-row items-center gap-2.5">
-                        <Ionicons name="arrow-redo-sharp" size={24} color="#2563eb" />
-                        <Ionicons name="arrow-undo-sharp" size={24} color="#2563eb" />
-                        <FontAwesome name="star" size={24} color="#2563eb" />
-                        <MaterialIcons
-                            onPress={handleDeleteMessages}
-                            name="delete"
-                            size={24}
-                            color="#2563eb"
-                        />
-                    </View>
-                ) : (
-                    <View className="flex-row items-center gap-4">
-                        <FontAwesome
-                            name="video-camera"
-                            size={20}
-                            color="#2563eb"
-                            onPress={handleVideoCall}
-                        />
-                        <Ionicons
-                            name="call"
-                            size={20}
-                            color="#2563eb"
-                            onPress={handleAudioCall}
-                        />
-                        {uploadingMedia && (
-                            <View className="flex-row items-center">
-                                <Text className="text-xs text-blue-500 mr-2">Uploading...</Text>
-                                <Ionicons name="cloud-upload" size={16} color="#2563eb" />
-                            </View>
-                        )}
-                    </View>
-                ),
+            headerRight: () => (
+                <ChatHeaderRight
+                    selectedMessages={selectedMessages}
+                    onDeleteMessages={handleDeleteMessages}
+                    onVideoCall={handleVideoCall}
+                    onAudioCall={handleAudioCall}
+                />
+            ),
         });
-    }, [recepientData, selectedMessages, navigation, connectionStatus, isOtherUserOnline, uploadingMedia]);
+    }, [recepientData, selectedMessages, navigation, connectionStatus, isOtherUserOnline]);
 
     if (!userId) {
         return null;
@@ -406,16 +330,6 @@ const ChatMessagesScreen = () => {
                             <View className="bg-red-600 p-2">
                                 <Text className="text-white text-center text-sm">
                                     Connection lost. Trying to reconnect...
-                                </Text>
-                            </View>
-                        )}
-
-                        {/* Uploading Indicator */}
-                        {uploadingMedia && (
-                            <View className="bg-blue-600 p-2 flex-row items-center justify-center">
-                                <Ionicons name="cloud-upload" size={16} color="white" />
-                                <Text className="text-white text-center text-sm ml-2">
-                                    Uploading media to Cloudinary...
                                 </Text>
                             </View>
                         )}
@@ -452,58 +366,19 @@ const ChatMessagesScreen = () => {
                             )}
                         </ScrollView>
 
-                        {/* Message Input Container */}
-                        <View
-                            className="flex-row items-center px-2.5 py-2.5 border-t border-gray-700 bg-black"
-                            style={{
-                                marginBottom: keyboardHeight,
-                            }}
-                        >
-                            <TextInput
-                                value={message}
-                                onChangeText={handleTextChange}
-                                className="flex-1 h-10 border border-gray-600 bg-gray-800 rounded-full px-4 text-white"
-                                placeholder="Type Your message..."
-                                placeholderTextColor="#9ca3af"
-                                multiline
-                                editable={connectionStatus === 'connected' && !uploadingMedia}
-                            />
-
-                            <View className="flex-row items-center gap-2 mx-2">
-                                <Entypo
-                                    onPress={() => showImagePickerOptions(
-                                        () => openCamera(handleImageSelected),
-                                        () => pickImageFromLibrary(handleImageSelected)
-                                    )}
-                                    name="camera"
-                                    size={24}
-                                    color={connectionStatus === 'connected' && !uploadingMedia ? "#2563eb" : "#6b7280"}
-                                    disabled={uploadingMedia}
-                                />
-                                <Pressable
-                                    onPressIn={handleStartRecording}
-                                    onPressOut={handleStopRecording}
-                                    disabled={connectionStatus !== 'connected' || uploadingMedia}
-                                >
-                                    <Feather
-                                        name="mic"
-                                        size={24}
-                                        color={isRecording ? "red" : connectionStatus === 'connected' && !uploadingMedia ? "#2563eb" : "#6b7280"}
-                                    />
-                                </Pressable>
-                            </View>
-
-                            <Pressable
-                                onPress={() => handleSend("text")}
-                                disabled={message.trim() === "" || connectionStatus !== 'connected' || uploadingMedia}
-                                className={`py-2 px-3 rounded-full ${message.trim() === "" || connectionStatus !== 'connected' || uploadingMedia
-                                    ? "bg-gray-700"
-                                    : "bg-blue-600"
-                                    }`}
-                            >
-                                <Text className="text-white font-bold">Send</Text>
-                            </Pressable>
-                        </View>
+                        {/* Message Input */}
+                        <MessageInput
+                            message={message}
+                            keyboardHeight={keyboardHeight}
+                            connectionStatus={connectionStatus}
+                            uploadingMedia={uploadingMedia}
+                            isRecording={isRecording}
+                            onTextChange={handleTextChange}
+                            onSend={() => handleSend("text")}
+                            onShowImagePicker={handleShowImagePicker}
+                            onStartRecording={handleStartRecording}
+                            onStopRecording={handleStopRecording}
+                        />
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>

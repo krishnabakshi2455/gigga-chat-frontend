@@ -12,4 +12,5 @@ declare module '@env' {
     export const Cloudinary_Root_API_Secret: string;
     export const CLOUDINARY_UPLOAD_PRESET: string;
     export const CLOUDINARY_UPLOAD_URL: string;
+    export const BACKEND_API_URL:string
 }
