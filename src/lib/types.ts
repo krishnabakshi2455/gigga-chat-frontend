@@ -3,7 +3,7 @@ export interface Message {
     senderId: {
         _id: string;
     };
-    messageType: "text" | "image" | "audio";
+    messageType: "text" | "image" | "audio" | "video";
     message?: string;
     imageUrl?: string;
     timeStamp: string;
@@ -57,6 +57,7 @@ export interface UserProps {
 }
 export interface ExtendedMessage extends Message {
     audioUrl?: string;
+    videoUrl?:string
 }
 
 export interface MessageInputProps {
@@ -67,4 +68,30 @@ export interface MessageInputProps {
     onStartRecording: () => void;
     onStopRecording: () => void;
     isRecording: boolean;
+}
+
+export interface DeleteMessageRequest {
+    messageType: string;
+    mediaUrl?: string;
+}
+
+export interface BatchDeleteRequest {
+    messages: Array<{
+        messageId: string;
+        messageType: string;
+        mediaUrl?: string;
+    }>;
+}
+
+export interface DeleteResponse {
+    success: boolean;
+    message: string;
+    deletedMessageId?: string;
+}
+
+export interface BatchDeleteResponse {
+    success: boolean;
+    deletedCount: number;
+    failedCount: number;
+    errors?: string[];
 }

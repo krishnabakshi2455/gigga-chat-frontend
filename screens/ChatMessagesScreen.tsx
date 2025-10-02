@@ -17,15 +17,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store";
 import { ExtendedMessage, RecipientData } from "../src/lib/types";
 import { requestPermissions } from "../src/lib/utils/permissionUtils";
-import { deleteMessages } from "../src/lib/utils/messageUtils";
 import { socketService } from "../src/services/socketServices";
 import { messageService } from "../src/services/MessageService";
 import { cloudinaryService } from "../src/services/CloudinaryService";
 import { startRecording, stopRecording } from "../src/lib/hooks/AudioRecorder";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/lib/hooks/ImagePicker";
-import MessageBubble from "../components/chatMessage/MessageBubble";
 import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";
 import { MessageInput } from "../components/chatMessage/MessageInput";
+import MessageBubble from "../components/chatMessage/MessageBubble";
+import { deleteMessages } from "../src/lib/utils/messageUtils";
+import { mediaDeletionService } from "../src/services/CloudinaryDelete";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -264,8 +265,29 @@ const ChatMessagesScreen = () => {
         }
     };
 
-    const handleDeleteMessages = () => {
-        deleteMessages(selectedMessages, setMessages, setSelectedMessages,);
+    // const handleDeleteMessages = () => {
+    //     deleteMessages(selectedMessages, setMessages, setSelectedMessages,);
+    // };
+
+
+    const handleDeleteMessage = async () => {
+        if (selectedMessages.length === 0) return;
+
+        // Get the full message objects from selected IDs
+        const messagesToDelete = messages.filter(msg =>
+            selectedMessages.includes(msg._id)
+        );
+
+        await mediaDeletionService.deleteMessagesWithConfirmation(
+            messagesToDelete,
+            () => {
+                // On success, remove from UI
+                setMessages(prevMessages =>
+                    prevMessages.filter(msg => !selectedMessages.includes(msg._id))
+                );
+                setSelectedMessages([]);
+            }
+        );
     };
 
     const handleVideoCall = () => {
@@ -304,7 +326,7 @@ const ChatMessagesScreen = () => {
             headerRight: () => (
                 <ChatHeaderRight
                     selectedMessages={selectedMessages}
-                    onDeleteMessages={handleDeleteMessages}
+                    onDeleteMessages={handleDeleteMessage}
                     onVideoCall={handleVideoCall}
                     onAudioCall={handleAudioCall}
                 />
@@ -352,6 +374,7 @@ const ChatMessagesScreen = () => {
                                         userId={userId}
                                         isSelected={isSelected}
                                         onLongPress={() => handleSelectMessage(item)}
+                                        onDeleteMessages={handleDeleteMessage}
                                     />
                                 );
                             })}

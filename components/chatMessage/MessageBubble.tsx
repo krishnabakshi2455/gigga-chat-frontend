@@ -1,15 +1,18 @@
+
 import React, { useState } from "react";
 import { View, Text, Image, Pressable, Modal, TouchableOpacity, Dimensions, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatTime } from "../../src/lib/utils/timeUtils";
 import { playAudio } from "../../src/lib/utils/messageUtils";
 import { ExtendedMessage } from "../../src/lib/types";
+import { mediaDeletionService } from "../../src/services/CloudinaryDelete";
 
 interface MessageBubbleProps {
     item: ExtendedMessage;
     userId: string;
     isSelected: boolean;
     onLongPress: () => void;
+    onDeleteMessages: () => void;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -17,6 +20,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     userId,
     isSelected,
     onLongPress,
+    onDeleteMessages
 }) => {
     const isOwnMessage = item?.senderId?._id === userId;
     const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -32,7 +36,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const handleDeleteFromModal = () => {
         Alert.alert(
             "Delete Image",
-            "Are you sure you want to delete this image?",
+            "Are you sure you want to delete this image? This will remove it from cloud storage.",
             [
                 {
                     text: "Cancel",
@@ -41,12 +45,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {
                     text: "Delete",
                     style: "destructive",
-                    onPress: () => {
+                    onPress: async () => {
                         setImageModalVisible(false);
-                        // Trigger the selection for deletion (same as long press)
-                        setTimeout(() => {
-                            onLongPress();
-                        }, 300);
+
+                        // Delete via service
+                        const success = await mediaDeletionService.deleteSingleMessage(item);
+
+                        if (success) {
+                            // Trigger deletion callback to parent
+                            onDeleteMessages();
+                        }
                     }
                 }
             ]
