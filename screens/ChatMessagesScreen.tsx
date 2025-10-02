@@ -23,7 +23,7 @@ import { messageService } from "../src/services/MessageService";
 import { cloudinaryService } from "../src/services/CloudinaryService";
 import { startRecording, stopRecording } from "../src/lib/hooks/AudioRecorder";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/lib/hooks/ImagePicker";
-import MessageBubble from "../src/lib/hooks/MessageBubble";
+import MessageBubble from "../components/chatMessage/MessageBubble";
 import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";
 import { MessageInput } from "../components/chatMessage/MessageInput";
 
