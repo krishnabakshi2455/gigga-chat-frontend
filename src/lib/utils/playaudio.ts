@@ -13,13 +13,3 @@ export const playAudio = async (audioUri: string) => {
     }
 };
 
-export const deleteMessages = async (messageIds: string[], setMessages: any, setSelectedMessages: any) => {
-    try {
-        console.log("Deleting messages:", messageIds);
-        // Local state update for UI
-        setMessages((prev: any) => prev.filter((msg: any) => !messageIds.includes(msg._id)));
-        setSelectedMessages([]);
-    } catch (error) {
-        console.log("error deleting messages", error);
-    }
-};

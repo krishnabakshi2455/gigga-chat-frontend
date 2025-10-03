@@ -3,9 +3,9 @@ import React, { useState } from "react";
 import { View, Text, Image, Pressable, Modal, TouchableOpacity, Dimensions, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatTime } from "../../src/lib/utils/timeUtils";
-import { playAudio } from "../../src/lib/utils/messageUtils";
+import { playAudio } from "../../src/lib/utils/playaudio";
 import { ExtendedMessage } from "../../src/lib/types";
-import { mediaDeletionService } from "../../src/services/CloudinaryDelete";
+import { messageDeletionService } from "../../src/services/DeleteMessage";
 
 interface MessageBubbleProps {
     item: ExtendedMessage;
@@ -49,7 +49,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         setImageModalVisible(false);
 
                         // Delete via service
-                        const success = await mediaDeletionService.deleteSingleMessage(item);
+                        const success = await messageDeletionService.deleteSingleMessage(item);
 
                         if (success) {
                             // Trigger deletion callback to parent

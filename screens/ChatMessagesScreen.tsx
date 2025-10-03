@@ -13,7 +13,6 @@ import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAtom } from "jotai";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store";
 import { ExtendedMessage, RecipientData } from "../src/lib/types";
 import { requestPermissions } from "../src/lib/utils/permissionUtils";
@@ -25,8 +24,7 @@ import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src
 import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";
 import { MessageInput } from "../components/chatMessage/MessageInput";
 import MessageBubble from "../components/chatMessage/MessageBubble";
-import { deleteMessages } from "../src/lib/utils/messageUtils";
-import { mediaDeletionService } from "../src/services/CloudinaryDelete";
+import { messageDeletionService } from "../src/services/DeleteMessage";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -265,11 +263,6 @@ const ChatMessagesScreen = () => {
         }
     };
 
-    // const handleDeleteMessages = () => {
-    //     deleteMessages(selectedMessages, setMessages, setSelectedMessages,);
-    // };
-
-
     const handleDeleteMessage = async () => {
         if (selectedMessages.length === 0) return;
 
@@ -278,7 +271,7 @@ const ChatMessagesScreen = () => {
             selectedMessages.includes(msg._id)
         );
 
-        await mediaDeletionService.deleteMessagesWithConfirmation(
+        await messageDeletionService.deleteMessagesWithConfirmation(
             messagesToDelete,
             () => {
                 // On success, remove from UI
