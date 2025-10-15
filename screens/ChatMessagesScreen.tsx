@@ -103,7 +103,7 @@ const ChatMessagesScreen = () => {
         if (!cloudinaryService.isConfigured()) {
             console.warn('⚠️ Cloudinary is not properly configured. Media uploads will fail.');
             const configStatus = cloudinaryService.getConfigurationStatus();
-            console.log('Cloudinary config status:', configStatus);
+            console.log('Cloudinary config status:', configStatus.uploadPreset);
         }
 
         requestPermissions();
@@ -209,7 +209,7 @@ const ChatMessagesScreen = () => {
                 setRecepientData(simulatedRecipient);
 
                 // Add debug logging to see what's happening
-                console.log('Recipient image URL:', image);
+                // console.log('Recipient image URL:', image);
             } catch (error) {
                 console.log("Error fetching recipient data", error);
             }
@@ -249,7 +249,7 @@ const ChatMessagesScreen = () => {
     };
 
     const handleSelectMessage = (message: ExtendedMessage) => {
-        const isSelected = selectedMessages.includes(message._id);
+        const isSelected = selectedMessages.includes(message?._id);
 
         if (isSelected) {
             setSelectedMessages((previousMessages) =>

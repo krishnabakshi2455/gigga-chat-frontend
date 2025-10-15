@@ -16,7 +16,7 @@ const HomeScreen = () => {
   const [userId, setUserId] = useAtom(userIdAtom);
   const [users, setUsers] = useState([]);
   const [hasIncomingRequests, setHasIncomingRequests] = useState(false);
-
+  
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: "",

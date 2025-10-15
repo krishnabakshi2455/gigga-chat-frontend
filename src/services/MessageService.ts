@@ -1,21 +1,63 @@
 import { Alert } from "react-native";
 import { socketService } from "../services/socketServices";
-import { ExtendedMessage } from "../lib/types";
-// import { v4 as uuidv4 } from 'uuid';
+import { BackendMessageData, ExtendedMessage } from "../lib/types";
+import { BACKEND_URL } from "@env";
+
+// Define the message structure for backend API
+
 
 export class MessageService {
     private typingTimeoutRef: NodeJS.Timeout | null = null;
     private debouncedTypingHandler: NodeJS.Timeout | null = null;
+    private baseURL = `${BACKEND_URL}`;
+
+    // Helper method to make API calls
+    private async makeApiCall(endpoint: string, options: RequestInit = {}) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers,
+                },
+                ...options,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
+        }
+    }
+
+    // Save message to backend - FIXED ENDPOINT
+    private async saveMessageToBackend(messageData: BackendMessageData): Promise<any> {
+        try {
+            // Now this calls: BACKEND_URL/api/messages
+            const response = await this.makeApiCall('/api/messages', { // Add /api here
+                method: 'POST',
+                body: JSON.stringify(messageData),
+            });
+
+            console.log('✅ Message saved to backend:', response);
+            return response;
+        } catch (error) {
+            console.error('❌ Failed to save message to backend:', error);
+            return null;
+        }
+    }
 
     // Socket event handlers
     handleReceiveMessage = (
         data: any,
         _id: string,
-        currentUserId:string,
+        currentUserId: string,
         setMessages: React.Dispatch<React.SetStateAction<ExtendedMessage[]>>,
         scrollToBottom: () => void
     ) => {
-        // if (data.senderId !== _id) return;
         if (data.recipientId !== currentUserId && data.senderId === currentUserId) return;
 
         const newMessage: ExtendedMessage = {
@@ -59,7 +101,6 @@ export class MessageService {
             React.SetStateAction<"connecting" | "connected" | "disconnected">
         >
     ) => {
-        // console.log("✅ Conversation joined:", data);
         setIsOtherUserOnline(data.isOtherUserOnline);
         setConnectionStatus("connected");
     };
@@ -69,7 +110,6 @@ export class MessageService {
         _id: string,
         setIsOtherUserOnline: React.Dispatch<React.SetStateAction<boolean>>
     ) => {
-        // console.log("👥 User joined conversation:", data);
         if (data.connectedUsers.includes(_id)) {
             setIsOtherUserOnline(true);
         }
@@ -80,7 +120,6 @@ export class MessageService {
         _id: string,
         setIsOtherUserOnline: React.Dispatch<React.SetStateAction<boolean>>
     ) => {
-        // console.log("👋 User left conversation:", data);
         if (data.userId === _id) {
             setIsOtherUserOnline(false);
         }
@@ -95,7 +134,7 @@ export class MessageService {
         }
     };
 
-    // Message sending
+    // Updated message sending with backend persistence
     async sendMessage(
         messageType: "text" | "image" | "audio",
         content: string | undefined,
@@ -113,6 +152,15 @@ export class MessageService {
                 return false;
             }
 
+            // Determine the actual content based on message type
+            let actualContent = "";
+            if (messageType === "text") {
+                if (!message.trim()) return false;
+                actualContent = message;
+            } else if ((messageType === "image" || messageType === "audio") && content) {
+                actualContent = content;
+            }
+
             // Create a new message object for immediate UI update
             const newMessage: ExtendedMessage = {
                 _id: `temp-${Date.now()}`,
@@ -121,24 +169,40 @@ export class MessageService {
                 timeStamp: new Date().toISOString(),
             };
 
+            // Set appropriate properties based on message type
+            if (messageType === "text") {
+                newMessage.message = actualContent;
+            } else if (messageType === "image") {
+                newMessage.imageUrl = actualContent;
+            } else if (messageType === "audio") {
+                newMessage.audioUrl = actualContent;
+            }
+
             let sent = false;
 
+            // Send via socket first
             if (messageType === "text") {
-                if (!message.trim()) return false;
-                newMessage.message = message;
-                sent = socketService.sendMessage(_id, message, "text");
+                sent = socketService.sendMessage(_id, actualContent, "text");
             } else if (messageType === "image" && content) {
-                newMessage.imageUrl = content;
-                sent = socketService.sendImageMessage(_id, content);
+                sent = socketService.sendImageMessage(_id, actualContent);
             } else if (messageType === "audio" && content) {
-                newMessage.audioUrl = content;
-                sent = socketService.sendAudioMessage(_id, content);
+                sent = socketService.sendAudioMessage(_id, actualContent);
             }
 
             if (!sent) {
                 Alert.alert("Error", "Could not send message. Please check your connection.");
                 return false;
             }
+
+            // Save to backend (fire and forget - don't block UI)
+            this.saveMessageToBackend({
+                senderId: userId,
+                receiverId: _id,
+                messageType,
+                content: actualContent,
+                conversationId: this.generateConversationId(userId, _id),
+                timeStamp: new Date().toISOString(),
+            });
 
             // Add to local state for immediate UI update
             setMessages((prev) => [...prev, newMessage]);
@@ -150,6 +214,12 @@ export class MessageService {
             Alert.alert("Error", "Failed to send message");
             return false;
         }
+    }
+
+    // Helper method to generate consistent conversation ID
+    private generateConversationId(userId1: string, userId2: string): string {
+        const sortedIds = [userId1, userId2].sort();
+        return `conv_${sortedIds[0]}_${sortedIds[1]}`;
     }
 
     // Typing handlers

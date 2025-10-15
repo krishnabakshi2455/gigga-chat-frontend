@@ -10,6 +10,7 @@ const User: React.FC<UserProps> = ({ item }) => {
     const [userId] = useAtom(userIdAtom);
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
     const [userFriends, setUserFriends] = useState<string[]>([]);
+    
 
     const fetchFriendRequests = async () => {
         if (!userId) return;

@@ -6,6 +6,8 @@ class SocketService {
     private socket: Socket | null = null;
     private isConnected = false;
     private eventListeners: Map<string, Function[]> = new Map();
+    private reconnectAttempts = 0;
+    private maxReconnectAttempts = 5;
 
     private constructor() { }
 
@@ -18,82 +20,149 @@ class SocketService {
 
     connect(token: string, userId: string): Promise<boolean> {
         return new Promise((resolve) => {
+            console.log('🔄 Attempting to connect to:', BACKEND_URL);
+            console.log('👤 User Present:', userId ? true : false);
+            console.log('🔑 Token:', token ? 'Present' : 'Missing');
+
             // Disconnect if already connected
             if (this.socket) {
+                console.log('🔌 Disconnecting existing socket...');
                 this.disconnect();
             }
 
-            // Connect to server
+            // Validate BACKEND_URL
+            if (!BACKEND_URL) {
+                console.error('❌ BACKEND_URL is not defined!');
+                resolve(false);
+                return;
+            }
+
+            // Connect to server with improved configuration
             this.socket = io(BACKEND_URL, {
                 auth: {
-                    token: token,    
-                    userId: userId  
+                    token: token,
+                    userId: userId
                 },
                 transports: ['websocket', 'polling'],
                 forceNew: true,
-                timeout: 10000,
-                reconnectionAttempts: 3,
+                timeout: 20000, // Increased timeout to 20 seconds
+                reconnection: true,
+                reconnectionAttempts: this.maxReconnectAttempts,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                autoConnect: true,
             });
 
             // Connection events
             this.socket.on('connect', () => {
-                console.log('Connected to server');
+                console.log('✅ Socket connected successfully!');
+                // console.log('🆔 Socket ID:', this.socket?.id);
                 this.isConnected = true;
+                this.reconnectAttempts = 0;
                 resolve(true);
-                console.log("✅ Socket connected successfully",this.socket?.id);
             });
 
-            this.socket.on('disconnect', () => {
-                console.log('Disconnected from server');
+            this.socket.on('disconnect', (reason) => {
+                console.log('❌ Disconnected from server. Reason:', reason);
                 this.isConnected = false;
+
+                if (reason === 'io server disconnect') {
+                    // Server disconnected the socket, manually reconnect
+                    console.log('🔄 Server disconnected, attempting to reconnect...');
+                    this.socket?.connect();
+                }
             });
 
             this.socket.on('connect_error', (error) => {
-                console.error('Connection error:', error);
+                console.error('❌ Connection error:', error.message);
+                console.error('Error details:', error);
                 this.isConnected = false;
+                this.reconnectAttempts++;
+
+                if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                    console.error('❌ Max reconnection attempts reached');
+                    resolve(false);
+                }
+            });
+
+            this.socket.on('connect_timeout', () => {
+                console.error('⏱️ Connection timeout');
+                this.isConnected = false;
+            });
+
+            this.socket.on('error', (error) => {
+                console.error('❌ Socket error:', error);
+            });
+
+            this.socket.on('reconnect', (attemptNumber) => {
+                console.log(`🔄 Reconnected after ${attemptNumber} attempts`);
+                this.isConnected = true;
+            });
+
+            this.socket.on('reconnect_attempt', (attemptNumber) => {
+                console.log(`🔄 Reconnection attempt ${attemptNumber}/${this.maxReconnectAttempts}`);
+            });
+
+            this.socket.on('reconnect_error', (error) => {
+                console.error('❌ Reconnection error:', error.message);
+            });
+
+            this.socket.on('reconnect_failed', () => {
+                console.error('❌ Reconnection failed after all attempts');
                 resolve(false);
             });
 
-            // Set timeout for connection
+            // Set timeout for initial connection
             setTimeout(() => {
                 if (!this.isConnected) {
-                    console.error('Connection timeout');
+                    console.error('❌ Initial connection timeout after 20 seconds');
                     resolve(false);
                 }
-            }, 5000);
+            }, 20000);
         });
     }
 
     disconnect() {
         if (this.socket) {
+            console.log('🔌 Disconnecting socket...');
             this.socket.disconnect();
             this.socket = null;
             this.isConnected = false;
+            this.reconnectAttempts = 0;
         }
         this.eventListeners.clear();
     }
 
     // Send message
     sendMessage(receiverId: string, message: string, messageType: string = 'text'): boolean {
-        if (this.socket && this.isConnected) {
+        if (!this.socket || !this.isConnected) {
+            console.warn('⚠️ Socket not connected, message not sent');
+            return false;
+        }
+
+        try {
+            // console.log('📤 Sending message to:', receiverId);
             this.socket.emit('send_message', {
                 receiverId,
                 message,
                 messageType
             });
             return true;
+        } catch (error) {
+            console.error('❌ Error sending message:', error);
+            return false;
         }
-        console.warn('Socket not connected, message not sent');
-        return false;
     }
 
     // Send image message
     sendImageMessage(receiverId: string, imageUrl: string): boolean {
+        console.log('📤 Sending image message to:', receiverId);
         return this.sendMessage(receiverId, imageUrl, 'image');
     }
 
     // Send audio message
     sendAudioMessage(receiverId: string, audioUrl: string): boolean {
+        console.log('📤 Sending audio message to:', receiverId);
         return this.sendMessage(receiverId, audioUrl, 'audio');
     }
 
@@ -126,13 +195,17 @@ class SocketService {
     // Join a conversation when user opens a chat
     joinConversation(otherUserId: string) {
         if (this.socket && this.isConnected) {
+            // console.log('👥 Joining conversation with:', otherUserId);
             this.socket.emit('join_conversation', { otherUserId });
+        } else {
+            console.warn('⚠️ Cannot join conversation - socket not connected');
         }
     }
 
     // Leave conversation when user closes chat
     leaveConversation(otherUserId: string) {
         if (this.socket && this.isConnected) {
+            // console.log('👋 Leaving conversation with:', otherUserId);
             this.socket.emit('leave_conversation', { otherUserId });
         }
     }
@@ -165,30 +238,27 @@ class SocketService {
         }
     }
 
-    // Remove all listeners (safe to call even if socket doesn't exist)
+    // Remove all listeners
     removeAllListeners(): void {
         try {
             if (this.socket) {
                 this.socket.removeAllListeners();
             }
             this.eventListeners.clear();
-            console.log('All socket listeners removed');
+            console.log('🧹 All socket listeners removed');
         } catch (error) {
-            console.warn('Error removing socket listeners:', error);
+            console.warn('⚠️ Error removing socket listeners:', error);
         }
-    }
-
-    // Safe version that checks if method exists
-    safeRemoveAllListeners(): void {
-        if (this.socket && typeof this.socket.removeAllListeners === 'function') {
-            this.socket.removeAllListeners();
-        }
-        this.eventListeners.clear();
     }
 
     // Get connection status
     getConnectionStatus(): boolean {
         return this.isConnected;
+    }
+
+    // Get socket instance (for debugging)
+    getSocket(): Socket | null {
+        return this.socket;
     }
 }
 

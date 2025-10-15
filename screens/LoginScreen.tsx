@@ -15,26 +15,43 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import { useAtom } from "jotai";
 import { userTokenAtom } from "../src/lib/store/userId.store";
 import { BACKEND_URL, GOOGLE_Web_Client_ID } from "@env";
+import LoadingScreen from "../components/loader";
 
-// Configure Google Sign-In 
+// Configure Google Sign-In with correct Web Client ID
 GoogleSignin.configure({
-    // webClientId: config.Web_Client_ID,
     webClientId: GOOGLE_Web_Client_ID,
     offlineAccess: true,
 });
-
 
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [googleLoading, setGoogleLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
+    const [backendConnected, setBackendConnected] = useState(false);
     const [usertokenatom, setusertokenatom] = useAtom(userTokenAtom);
     const [errors, setErrors] = useState({
         email: "",
         password: "",
     });
     const navigation = useNavigation<any>();
+
+    // Function to check backend connectivity
+    const checkBackendConnection = async (): Promise<boolean> => {
+        try {
+            console.log('🔌 Checking backend connection:', BACKEND_URL);
+            const response = await axios.get(`${BACKEND_URL}/health`, {
+                timeout: 5000,
+            });
+            console.log('✅ Backend connected:', response.status === 200);
+            setBackendConnected(true);
+            return true;
+        } catch (error) {
+            console.log('❌ Backend connection failed:', error);
+            setBackendConnected(false);
+            return false;
+        }
+    };
 
     // Function to check if token is expired
     const isTokenExpired = (token: string): boolean => {
@@ -56,15 +73,22 @@ const LoginScreen = () => {
     };
 
     useEffect(() => {
-        const checkLoginStatus = async () => {
+        const initialize = async () => {
             try {
                 setInitialLoading(true);
-                const token = await AsyncStorage.getItem("authToken");
 
+                // Log environment variables for debugging
+                console.log('🔧 Configuration:');
+                // console.log('BACKEND_URL:', BACKEND_URL);
+                // console.log('GOOGLE_Web_Client_ID:', GOOGLE_Web_Client_ID);
+
+                // Check backend connectivity silently (don't show alert)
+                await checkBackendConnection();
+
+                const token = await AsyncStorage.getItem("authToken");
                 console.log('🔐 Token found:', !!token);
 
                 if (token) {
-                    // Debug token info
                     try {
                         const parts = token.split('.');
                         if (parts.length === 3) {
@@ -95,7 +119,7 @@ const LoginScreen = () => {
                 setusertokenatom("");
 
             } catch (error) {
-                console.log("Error checking login status:", error);
+                console.log("Error during initialization:", error);
                 await AsyncStorage.removeItem("authToken");
                 setusertokenatom("");
             } finally {
@@ -103,7 +127,7 @@ const LoginScreen = () => {
             }
         };
 
-        checkLoginStatus();
+        initialize();
     }, []);
 
     // Email validation function
@@ -120,7 +144,6 @@ const LoginScreen = () => {
         };
         let isValid = true;
 
-        // Email validation
         if (!email.trim()) {
             tempErrors.email = "Email is required";
             isValid = false;
@@ -129,7 +152,6 @@ const LoginScreen = () => {
             isValid = false;
         }
 
-        // Password validation
         if (!password.trim()) {
             tempErrors.password = "Password is required";
             isValid = false;
@@ -142,7 +164,6 @@ const LoginScreen = () => {
         return isValid;
     };
 
-    // Clear error when user starts typing
     const handleEmailChange = (text: string) => {
         setEmail(text);
         if (errors.email) {
@@ -157,9 +178,18 @@ const LoginScreen = () => {
         }
     };
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!validateForm()) {
             return;
+        }
+
+        // Check backend connection before attempting login (only show alert on user action)
+        if (!backendConnected) {
+            const isConnected = await checkBackendConnection();
+            if (!isConnected) {
+                Alert.alert('Connection Error', 'Cannot connect to server. Please check your connection and try again.');
+                return;
+            }
         }
 
         const user = {
@@ -184,25 +214,51 @@ const LoginScreen = () => {
     const handleGoogleSignIn = async () => {
         try {
             setGoogleLoading(true);
+            console.log('🚀 Starting Google Sign-In...');
+
+            // Check backend connection (only show alert on user action)
+            if (!backendConnected) {
+                const isConnected = await checkBackendConnection();
+                if (!isConnected) {
+                    Alert.alert('Connection Error', 'Cannot connect to server. Please check your connection and try again.');
+                    setGoogleLoading(false);
+                    return;
+                }
+            }
+
+            // Verify Google configuration
+            console.log('🔑 Google Web Client ID:', GOOGLE_Web_Client_ID);
+            if (!GOOGLE_Web_Client_ID || GOOGLE_Web_Client_ID.includes('http')) {
+                Alert.alert(
+                    'Configuration Error',
+                    'Google Sign-In is not properly configured. Please check your environment variables.'
+                );
+                setGoogleLoading(false);
+                return;
+            }
 
             // Sign out first to clear any cached credentials
             try {
                 await GoogleSignin.signOut();
+                console.log('🔓 Signed out from previous session');
             } catch (signOutError) {
-                console.log('Google sign out error:', signOutError);
+                console.log('Sign out error (can be ignored):', signOutError);
             }
 
             // Check if Google Play Services are available
-            await GoogleSignin.hasPlayServices();
+            console.log('🎮 Checking Google Play Services...');
+            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
             // Sign in with Google
+            console.log('📝 Signing in with Google...');
             const userInfo = await GoogleSignin.signIn();
 
-            // console.log('Google user info received:', {
-            //     hasName: !!userInfo.data?.user?.name,
-            //     hasEmail: !!userInfo.data?.user?.email,
-            //     hasPhoto: !!userInfo.data?.user?.photo
-            // });
+            console.log('✅ Google sign-in successful');
+            console.log('User data:', {
+                hasName: !!userInfo.data?.user?.name,
+                hasEmail: !!userInfo.data?.user?.email,
+                hasPhoto: !!userInfo.data?.user?.photo
+            });
 
             const googleUser = {
                 name: userInfo.data?.user?.name || "",
@@ -210,27 +266,47 @@ const LoginScreen = () => {
                 image: userInfo.data?.user?.photo || "",
             };
 
-            // console.log('Sending to backend:', googleUser);
+            // Validate that we have required data
+            if (!googleUser.email) {
+                throw new Error('No email received from Google');
+            }
 
-            const response = await axios.post(`${BACKEND_URL}/googleauth`, googleUser);
+            // console.log('📤 Sending to backend:', `${BACKEND_URL}/googleauth`);
+
+            const response = await axios.post(`${BACKEND_URL}/googleauth`, googleUser, {
+                timeout: 10000,
+            });
+
+            console.log('✅ Backend response received');
             const token = response.data.token;
 
             await AsyncStorage.setItem("authToken", token);
             setusertokenatom(token);
+
+            console.log('🏠 Navigating to Home');
             navigation.replace("Home");
 
         } catch (error: any) {
-            setGoogleLoading(false);
-            console.error('Google Sign-In error details:', error);
+            console.error('❌ Google Sign-In error:', error);
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
 
             if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                Alert.alert('Cancelled', 'Google Sign-In was cancelled');
+                // Don't show alert for user cancellation
+                console.log('User cancelled sign-in');
             } else if (error.code === statusCodes.IN_PROGRESS) {
-                console.log('Google Sign-In in progress');
+                console.log('Sign-In already in progress');
             } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                Alert.alert('Error', 'Google Play Services not available');
+                Alert.alert('Error', 'Google Play Services not available or outdated');
+            } else if (error.response) {
+                // Backend error
+                console.error('Backend error:', error.response.data);
+                Alert.alert('Authentication Error', 'Failed to authenticate with server. Please try again.');
+            } else if (error.request) {
+                // Network error
+                Alert.alert('Network Error', 'Cannot reach the server. Please check your connection.');
             } else {
-                Alert.alert('Google Sign-In Error', 'Failed to sign in with Google. Please try again.');
+                Alert.alert('Error', `Google Sign-In failed: ${error.message}`);
             }
         } finally {
             setGoogleLoading(false);
@@ -239,17 +315,28 @@ const LoginScreen = () => {
 
     // Show loading screen while checking token
     if (initialLoading) {
-        return (
-            <View className="flex-1 bg-black justify-center items-center">
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text className="text-white mt-4 text-lg">Checking authentication...</Text>
-            </View>
-        );
+        return <LoadingScreen message="Checking authentication..." />;
     }
 
     return (
         <View className="flex-1 bg-black p-10 items-center">
             <KeyboardAvoidingView>
+                {/* Backend connection indicator */}
+                <Pressable
+                    onPress={checkBackendConnection}
+                    className="absolute top-2 right-2"
+                >
+                    <View className="flex-row items-center bg-gray-800 px-3 py-1 rounded-full">
+                        <View
+                            className={`w-2 h-2 rounded-full mr-2 ${backendConnected ? 'bg-green-500' : 'bg-red-500'
+                                }`}
+                        />
+                        <Text className="text-white text-xs">
+                            {backendConnected ? 'Connected' : 'Tap to Retry'}
+                        </Text>
+                    </View>
+                </Pressable>
+
                 <View className="mt-24 justify-center items-center flex">
                     <Text className="text-lg font-semibold mt-4 text-white">
                         Sign In to Your Account

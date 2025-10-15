@@ -12,6 +12,7 @@ const ChatsScreen: React.FC = () => {
     const [acceptedFriends, setAcceptedFriends] = useState<AcceptedFriend[]>([]);
     const [userId] = useAtom(userIdAtom);
     const navigation = useNavigation<any>();
+    
 
     useEffect(() => {
         const acceptedFriendsList = async () => {

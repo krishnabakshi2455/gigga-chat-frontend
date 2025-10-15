@@ -8,7 +8,12 @@ export interface Message {
     imageUrl?: string;
     timeStamp: string;
 }
-
+export interface BackendMessageData extends Omit<Message, "_id" | "senderId"> {
+    senderId:string
+    receiverId: string;
+    content: string;
+    conversationId: string;
+}
 export interface RecipientData {
     _id: string;
     name: string;
@@ -57,7 +62,7 @@ export interface UserProps {
 }
 export interface ExtendedMessage extends Message {
     audioUrl?: string;
-    videoUrl?:string
+    videoUrl?: string
 }
 
 export interface MessageInputProps {
@@ -94,4 +99,14 @@ export interface BatchDeleteResponse {
     deletedCount: number;
     failedCount: number;
     errors?: string[];
+}
+
+export interface SendMessageOptions {
+    recipientId: string;
+    senderId: string;
+    setMessages: React.Dispatch<React.SetStateAction<ExtendedMessage[]>>;
+    setMessage: React.Dispatch<React.SetStateAction<string>>;
+    scrollToBottom: () => void;
+    connectionStatus: "connecting" | "connected" | "disconnected";
+    onUploadProgress?: (progress: number) => void;
 }
