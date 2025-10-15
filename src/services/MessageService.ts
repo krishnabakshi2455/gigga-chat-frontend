@@ -167,6 +167,7 @@ export class MessageService {
                 messageType,
                 senderId: { _id: userId },
                 timeStamp: new Date().toISOString(),
+                conversationId: this.generateConversationId(userId, _id), 
             };
 
             // Set appropriate properties based on message type
