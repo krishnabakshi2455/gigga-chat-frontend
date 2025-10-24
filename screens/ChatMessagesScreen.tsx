@@ -7,7 +7,8 @@ import {
     Platform,
     Keyboard,
     TouchableWithoutFeedback,
-    AppState
+    AppState,
+    ActivityIndicator
 } from "react-native";
 import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,8 +44,39 @@ const ChatMessagesScreen = () => {
     const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
     const [uploadingMedia, setUploadingMedia] = useState(false);
+    const [loadingMessages, setLoadingMessages] = useState(true); // NEW: Loading state
 
     const scrollViewRef = useRef<ScrollView>(null);
+
+    // NEW: Fetch historical messages when component mounts
+    useEffect(() => {
+        const loadMessages = async () => {
+            if (!userId || !_id) return;
+
+            try {
+                setLoadingMessages(true);
+                console.log('📥 Loading historical messages...');
+
+                const historicalMessages = await messageService.fetchMessages(userId, _id);
+
+                if (historicalMessages.length > 0) {
+                    setMessages(historicalMessages);
+                    console.log('✅ Loaded', historicalMessages.length, 'messages');
+
+                    // Scroll to bottom after messages are loaded
+                    setTimeout(() => scrollToBottom(), 300);
+                } else {
+                    console.log('ℹ️ No previous messages found');
+                }
+            } catch (error) {
+                console.error('❌ Error loading messages:', error);
+            } finally {
+                setLoadingMessages(false);
+            }
+        };
+
+        loadMessages();
+    }, [userId, _id]);
 
     // Media Upload Handlers
     const handleImageUpload = async (imageUri: string) => {
@@ -107,7 +139,6 @@ const ChatMessagesScreen = () => {
         }
 
         requestPermissions();
-        scrollToBottom();
 
         // Connect to socket when component mounts
         if (userId && userToken && _id) {
@@ -207,9 +238,6 @@ const ChatMessagesScreen = () => {
                     image: image
                 };
                 setRecepientData(simulatedRecipient);
-
-                // Add debug logging to see what's happening
-                // console.log('Recipient image URL:', image);
             } catch (error) {
                 console.log("Error fetching recipient data", error);
             }
@@ -357,7 +385,25 @@ const ChatMessagesScreen = () => {
                             keyboardDismissMode="on-drag"
                             keyboardShouldPersistTaps="handled"
                         >
-                            {messages.map((item, index) => {
+                            {/* Loading Indicator - NEW */}
+                            {loadingMessages && (
+                                <View className="flex-1 justify-center items-center p-10">
+                                    <ActivityIndicator size="large" color="#2563eb" />
+                                    <Text className="text-gray-400 mt-2">Loading messages...</Text>
+                                </View>
+                            )}
+
+                            {/* Empty State - NEW */}
+                            {!loadingMessages && messages.length === 0 && (
+                                <View className="flex-1 justify-center items-center p-10">
+                                    <Text className="text-gray-400 text-center">
+                                        No messages yet. Start the conversation!
+                                    </Text>
+                                </View>
+                            )}
+
+                            {/* Messages */}
+                            {!loadingMessages && messages.map((item, index) => {
                                 const isSelected = selectedMessages.includes(item._id);
 
                                 return (

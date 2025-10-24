@@ -21,6 +21,7 @@ export interface RecipientData {
     image: string;
 }
 
+
 export interface FriendRequestProps {
     item: UserItem;
     friendRequests: UserItem[];

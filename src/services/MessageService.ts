@@ -3,9 +3,6 @@ import { socketService } from "../services/socketServices";
 import { BackendMessageData, ExtendedMessage } from "../lib/types";
 import { BACKEND_URL } from "@env";
 
-// Define the message structure for backend API
-
-
 export class MessageService {
     private typingTimeoutRef: NodeJS.Timeout | null = null;
     private debouncedTypingHandler: NodeJS.Timeout | null = null;
@@ -33,11 +30,59 @@ export class MessageService {
         }
     }
 
-    // Save message to backend - FIXED ENDPOINT
+    // NEW: Fetch messages between two users
+    async fetchMessages(
+        userId: string,
+        recipientId: string,
+        limit: number = 50,
+        skip: number = 0
+    ): Promise<ExtendedMessage[]> {
+        try {
+            console.log('📥 Fetching messages between:', userId, 'and', recipientId);
+
+            const response = await this.makeApiCall(
+                `/api/messages/${userId}/${recipientId}?limit=${limit}&skip=${skip}`,
+                { method: 'GET' }
+            );
+
+            if (response.success && response.data) {
+                console.log('✅ Fetched', response.data.length, 'messages from backend');
+                return response.data;
+            }
+
+            return [];
+        } catch (error) {
+            console.error('❌ Failed to fetch messages:', error);
+            return [];
+        }
+    }
+
+    // NEW: Fetch all conversations for a user
+    async fetchConversations(userId: string): Promise<any[]> {
+        try {
+            console.log('📥 Fetching conversations for user:', userId);
+
+            const response = await this.makeApiCall(
+                `/api/conversations/${userId}`,
+                { method: 'GET' }
+            );
+
+            if (response.success && response.data) {
+                console.log('✅ Fetched', response.data.length, 'conversations');
+                return response.data;
+            }
+
+            return [];
+        } catch (error) {
+            console.error('❌ Failed to fetch conversations:', error);
+            return [];
+        }
+    }
+
+    // Save message to backend
     private async saveMessageToBackend(messageData: BackendMessageData): Promise<any> {
         try {
-            // Now this calls: BACKEND_URL/api/messages
-            const response = await this.makeApiCall('/api/messages', { // Add /api here
+            const response = await this.makeApiCall('/api/messages', {
                 method: 'POST',
                 body: JSON.stringify(messageData),
             });
@@ -167,7 +212,7 @@ export class MessageService {
                 messageType,
                 senderId: { _id: userId },
                 timeStamp: new Date().toISOString(),
-                conversationId: this.generateConversationId(userId, _id), 
+                conversationId: this.generateConversationId(userId, _id),
             };
 
             // Set appropriate properties based on message type
