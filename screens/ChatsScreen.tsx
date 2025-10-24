@@ -3,43 +3,38 @@ import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
-import { AcceptedFriend } from "../src/lib/types";
-import { BACKEND_URL } from "@env";
 import UserChat from "../components/UserChat";
-
+import { userService } from "../src/services/userService";
+import { UserItem } from "../src/lib/types";
 
 const ChatsScreen: React.FC = () => {
-    const [acceptedFriends, setAcceptedFriends] = useState<AcceptedFriend[]>([]);
+    const [acceptedFriends, setAcceptedFriends] = useState<UserItem[]>([]);
     const [userId] = useAtom(userIdAtom);
     const navigation = useNavigation<any>();
-    
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const acceptedFriendsList = async () => {
-            if (!userId) return;
+            if (!userId) {
+                setLoading(false);
+                return;
+            }
 
             try {
-                const response = await fetch(
-                    `${BACKEND_URL}/accepted-friends/${userId}`
-                );
-                const data = await response.json();
-
-                if (response.ok) {
-                    setAcceptedFriends(data);
-                } else {
-                    console.log("error fetching accepted friends", response.status);
-                }
+                setLoading(true);
+                const friends = await userService.fetchAcceptedFriends(userId);
+                setAcceptedFriends(friends);
             } catch (error) {
                 console.log("error showing the accepted friends", error);
+            } finally {
+                setLoading(false);
             }
         };
 
         acceptedFriendsList();
     }, [userId]);
 
-    // console.log("friends", acceptedFriends);
-
-    if (!userId) {
+    if (!userId || loading) {
         return (
             <View className="flex-1 justify-center items-center">
                 <Text className="text-white">Loading...</Text>
@@ -59,7 +54,7 @@ const ChatsScreen: React.FC = () => {
                     ))
                 ) : (
                     <View className="flex-1 justify-center items-center py-20 ">
-                            <Text className="text-white text-center border-b border-gray-800">
+                        <Text className="text-white text-center border-b border-gray-800">
                             No chats yet{'\n'}Start a conversation with your friends!
                         </Text>
                     </View>

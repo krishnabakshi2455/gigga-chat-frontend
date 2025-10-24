@@ -227,7 +227,7 @@ const LoginScreen = () => {
             }
 
             // Verify Google configuration
-            console.log('🔑 Google Web Client ID:', GOOGLE_Web_Client_ID);
+            // console.log('🔑 Google Web Client ID:', GOOGLE_Web_Client_ID);
             if (!GOOGLE_Web_Client_ID || GOOGLE_Web_Client_ID.includes('http')) {
                 Alert.alert(
                     'Configuration Error',

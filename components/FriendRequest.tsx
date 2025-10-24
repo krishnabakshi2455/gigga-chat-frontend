@@ -2,9 +2,9 @@ import { Text, View, Pressable, Image, Alert } from "react-native";
 import React, { useState } from "react";
 import { useAtom } from 'jotai';
 import { useNavigation } from "@react-navigation/native";
-import { BACKEND_URL } from "@env";
 import { FriendRequestProps } from "../src/lib/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
+import { userService } from "../src/services/userService";
 
 const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, setFriendRequests }) => {
     const [userId] = useAtom(userIdAtom);
@@ -13,21 +13,14 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
     const navigation = useNavigation<any>();
 
     const acceptRequest = async (friendRequestId: string): Promise<void> => {
-        if (acceptLoading) return;
+        if (acceptLoading || !userId) return;
 
         try {
             setAcceptLoading(true);
 
-            const response = await fetch(`${BACKEND_URL}/friend-request/accept`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    senderId: friendRequestId,
-                    recepientId: userId,
-                }),
-            });
+            const success = await userService.acceptFriendRequest(friendRequestId, userId);
 
-            if (response.ok) {
+            if (success) {
                 setFriendRequests(
                     friendRequests.filter((request) => request._id !== friendRequestId)
                 );
@@ -44,18 +37,14 @@ const FriendRequest: React.FC<FriendRequestProps> = ({ item, friendRequests, set
     };
 
     const rejectRequest = async (friendRequestId: string): Promise<void> => {
-        if (rejectLoading) return;
+        if (rejectLoading || !userId) return;
 
         try {
             setRejectLoading(true);
 
-            const response = await fetch(`${BACKEND_URL}/friend-request/reject`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ senderId: friendRequestId, recepientId: userId }),
-            });
+            const success = await userService.rejectFriendRequest(friendRequestId, userId);
 
-            if (response.ok) {
+            if (success) {
                 setFriendRequests(
                     friendRequests.filter((request) => request._id !== friendRequestId)
                 );

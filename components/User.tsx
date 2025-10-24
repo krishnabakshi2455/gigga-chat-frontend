@@ -1,72 +1,50 @@
 import { Text, View, Pressable, Image } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
-import { BACKEND_URL } from "@env";
 import { FriendRequest, UserProps } from "../src/lib/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
-
+import { userService } from "../src/services/userService";
 
 const User: React.FC<UserProps> = ({ item }) => {
     const [userId] = useAtom(userIdAtom);
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
     const [userFriends, setUserFriends] = useState<string[]>([]);
-    
 
     const fetchFriendRequests = async () => {
         if (!userId) return;
         try {
-            const response = await fetch(
-                `${BACKEND_URL}/friend-requests/sent/${userId}`
-            );
-            const data = await response.json();
-            if (response.ok) {
-                setFriendRequests(data);
-            } else {
-                console.log("error in else", response.status);
-            }
+            const data = await userService.fetchSentFriendRequests(userId);
+            setFriendRequests(data);
         } catch (error) {
-            console.log("error in catch", error);
+            console.log("Error fetching friend requests:", error);
+        }
+    };
+
+    const fetchUserFriends = async () => {
+        if (!userId) return;
+        try {
+            const data = await userService.fetchUserFriends(userId);
+            setUserFriends(data);
+        } catch (error) {
+            console.log("Error fetching user friends:", error);
         }
     };
 
     useEffect(() => {
         fetchFriendRequests();
-    }, [userId]);
-
-    const fetchUserFriends = async () => {
-        if (!userId) return;
-        try {
-            const response = await fetch(`${BACKEND_URL}/friends/${userId}`);
-            const data = await response.json();
-            if (response.ok) {
-                setUserFriends(data);
-            } else {
-                console.log("error retrieving user friends", response.status);
-            }
-        } catch (error) {
-            console.log("Error message", error);
-        }
-    };
-
-    useEffect(() => {
         fetchUserFriends();
     }, [userId]);
 
-    const sendFriendRequest = async (currentUserId: string, selectedUserId: string) => {
-        try {
-            const response = await fetch(`${BACKEND_URL}/friend-request`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ currentUserId, selectedUserId }),
-            });
+    const handleSendFriendRequest = async () => {
+        if (!userId) return;
 
-            if (response.ok) {
+        try {
+            const success = await userService.sendFriendRequest(userId, item._id);
+            if (success) {
                 await fetchFriendRequests();
             }
         } catch (error) {
-            console.log("error message", error);
+            console.log("Error sending friend request:", error);
         }
     };
 
@@ -118,7 +96,7 @@ const User: React.FC<UserProps> = ({ item }) => {
                 </Pressable>
             ) : (
                 <Pressable
-                    onPress={() => sendFriendRequest(userId, item._id)}
+                    onPress={handleSendFriendRequest}
                     className="ml-4 bg-blue-600 px-4 py-2 rounded-full"
                 >
                     <Text className="text-white text-sm font-medium">

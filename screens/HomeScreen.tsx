@@ -1,31 +1,36 @@
-import { Text, View, TouchableOpacity, FlatList, Image } from "react-native";
+import { Text, View, TouchableOpacity } from "react-native";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAtom } from "jotai";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { jwtDecode } from "jwt-decode";
-import axios from "axios";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import { BACKEND_URL } from "@env";
+import { UserItem } from "../src/lib/types";
 import User from "../components/User";
+import { userService } from "../src/services/userService";
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
   const [userId, setUserId] = useAtom(userIdAtom);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [hasIncomingRequests, setHasIncomingRequests] = useState(false);
-  
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: "",
       headerLeft: () => (
-        <Text style={{ fontSize: 16, fontWeight: "bold" }} className="text-white text-base">Gigga Chat</Text>
+        <Text style={{ fontSize: 16, fontWeight: "bold" }} className="text-white text-base">
+          Gigga Chat
+        </Text>
       ),
       headerRight: () => (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Ionicons onPress={() => navigation.navigate("Chats")} name="chatbox-ellipses-outline" size={24} color="blue" />
+          <Ionicons
+            onPress={() => navigation.navigate("Chats")}
+            name="chatbox-ellipses-outline"
+            size={24}
+            color="blue"
+          />
           <TouchableOpacity onPress={handleFriendsPress}>
             <View style={{ position: 'relative' }}>
               <MaterialIcons
@@ -53,76 +58,23 @@ const HomeScreen = () => {
     });
   }, [hasIncomingRequests]);
 
-  // Function to get read friend request IDs from AsyncStorage
-  const getReadFriendRequestIds = async (): Promise<string[]> => {
-    try {
-      const readIds = await AsyncStorage.getItem('readFriendRequestIds');
-      return readIds ? JSON.parse(readIds) : [];
-    } catch (error) {
-      console.log("Error getting read friend request IDs:", error);
-      return [];
-    }
-  };
-
-  // Function to save read friend request IDs to AsyncStorage
-  const saveReadFriendRequestIds = async (ids: string[]) => {
-    try {
-      await AsyncStorage.setItem('readFriendRequestIds', JSON.stringify(ids));
-    } catch (error) {
-      console.log("Error saving read friend request IDs:", error);
-    }
-  };
-
-  // Function to check for incoming friend requests and compare with read IDs
-  const checkForIncomingRequests = async (currentUserId: string) => {
-    try {
-      const response = await axios.get(`${BACKEND_URL}/friend-request/${currentUserId}`);
-
-      if (response.status === 200 && response.data && response.data.length > 0) {
-        // Get the IDs of current friend requests
-        const currentRequestIds = response.data.map((request: any) => request.id || request._id);
-
-        // Get previously read request IDs
-        const readIds = await getReadFriendRequestIds();
-
-        // Check if there are any NEW unread requests
-        const hasUnreadRequests = currentRequestIds.some((id: string) => !readIds.includes(id));
-
-        setHasIncomingRequests(hasUnreadRequests);
-        return hasUnreadRequests;
-      } else {
-        setHasIncomingRequests(false);
-        return false;
-      }
-    } catch (error) {
-      console.log("Error checking friend requests:", error);
-      setHasIncomingRequests(false);
-      return false;
-    }
-  };
-
   useEffect(() => {
     const fetchUsersAndCheckRequests = async () => {
-      const token = await AsyncStorage.getItem("authToken");
-
-      if (!token) {
-        console.log("No auth token found");
-        return;
-      }
-
-      const decodedToken = jwtDecode(token) as any;
-      const decodedUserId = decodedToken.userId;
-      setUserId(decodedUserId);
-
-      // Fetch users
       try {
-        const response = await axios.get(`${BACKEND_URL}/users/${decodedUserId}`);
-        setUsers(response.data);
+        // Use the service to initialize all user data
+        const { userId: fetchedUserId, users: fetchedUsers, hasUnreadRequests } =
+          await userService.initializeUserData();
 
-        // Check for friend requests after getting users
-        await checkForIncomingRequests(decodedUserId);
+        if (!fetchedUserId) {
+          console.log("No auth token found");
+          return;
+        }
+
+        setUserId(fetchedUserId);
+        setUsers(fetchedUsers);
+        setHasIncomingRequests(hasUnreadRequests);
       } catch (error) {
-        console.log("error retrieving users", error);
+        console.log("Error initializing user data:", error);
       }
     };
 
@@ -130,32 +82,21 @@ const HomeScreen = () => {
   }, [setUserId]);
 
   const handleFriendsPress = async () => {
-    // Mark all current friend requests as "read" when user clicks Friends
-    try {
-      const response = await axios.get(`${BACKEND_URL}/friend-request/${userId}`);
-
-      if (response.status === 200 && response.data && response.data.length > 0) {
-        const currentRequestIds = response.data.map((request: any) => request.id || request._id);
-
-        // Get existing read IDs and add new ones
-        const existingReadIds = await getReadFriendRequestIds();
-        const updatedReadIds = [...new Set([...existingReadIds, ...currentRequestIds])]; // Remove duplicates
-
-        // Save updated read IDs
-        await saveReadFriendRequestIds(updatedReadIds);
-      }
-    } catch (error) {
-      console.log("Error marking requests as read:", error);
-    }
-
-    setHasIncomingRequests(false);
     navigation.navigate("Friends");
+    try {
+      // Mark all current friend requests as "read" when user clicks Friends
+      await userService.markFriendRequestsAsRead(userId);
+      setHasIncomingRequests(false);
+      
+    } catch (error) {
+      console.log("Error handling friends press:", error);
+    }
   };
 
   return (
     <View className="h-full" style={{ backgroundColor: "#000" }}>
       {/* Content */}
-      <View className=" flex-1">
+      <View className="flex-1">
         {users.map((item, index) => (
           <User key={index} item={item} />
         ))}
