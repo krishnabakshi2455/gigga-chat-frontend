@@ -4,24 +4,11 @@ import { useNavigation } from "@react-navigation/native";
 import { useAtom } from "jotai";
 import { BACKEND_URL } from "@env";
 import { userIdAtom } from "../src/lib/store/userId.store";
-
-interface Message {
-    _id: string;
-    messageType: "text" | "image" | "audio";
-    message?: string;
-    imageUrl?: string;
-    audioUrl?: string;
-    timeStamp: string;
-}
-
-interface UserChatItem {
-    _id: string;
-    name: string;
-    image: string;
-}
+import { Message, RecipientData } from "../src/lib/types";
+import { messageService } from "../src/services/MessageService";
 
 interface UserChatProps {
-    item: UserChatItem;
+    item: RecipientData;
 }
 
 const UserChat: React.FC<UserChatProps> = ({ item }) => {
@@ -52,6 +39,30 @@ const UserChat: React.FC<UserChatProps> = ({ item }) => {
     useEffect(() => {
         fetchMessages();
     }, [userId]);
+
+    // NEW: Fetch historical messages when component mounts
+    useEffect(() => {
+        const loadMessages = async () => {
+            if (!userId || !item._id) return;
+
+            try {
+                console.log('📥 Loading historical messages...');
+
+                const historicalMessages = await messageService.fetchMessages(userId, item._id);
+
+                if (historicalMessages.length > 0) {
+                    setMessages(historicalMessages);
+                    console.log('✅ Loaded', historicalMessages.length, 'messages');
+                } else {
+                    console.log('ℹ️ No previous messages found');
+                }
+            } catch (error) {
+                console.error('❌ Error loading messages:', error);
+            }
+        };
+
+        loadMessages();
+    }, [userId, item._id]);
 
     const getLastMessage = (): Message | undefined => {
         const userMessages = messages.filter(
