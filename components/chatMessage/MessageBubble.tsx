@@ -32,6 +32,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             setImageModalVisible(true);
         }
     };
+    // console.log("item",item.conversationId);
+    
 
     const handleDeleteFromModal = () => {
         Alert.alert(

@@ -44,6 +44,7 @@ export class MessageService {
                 `/api/messages/${userId}/${recipientId}?limit=${limit}&skip=${skip}`,
                 { method: 'GET' }
             );
+            
 
             if (response.success && response.data) {
                 console.log('✅ Fetched', response.data.length, 'messages from backend');
@@ -212,7 +213,7 @@ export class MessageService {
                 messageType,
                 senderId: { _id: userId },
                 timeStamp: new Date().toISOString(),
-                conversationId: this.generateConversationId(userId, _id),
+                conversation_id: this.generateConversationId(userId, _id),
             };
 
             // Set appropriate properties based on message type

@@ -77,24 +77,36 @@ class MessageDeletionService {
      * Delete message from MongoDB (all message types: text, image, audio, video)
      * Returns an object with success status and whether the message was found
      */
-    private async deleteFromMongoDB(messageId: string): Promise<{
+    private async deleteFromMongoDB(message: ExtendedMessage): Promise<{
         success: boolean;
         found: boolean;
     }> {
         try {
             // Check if this is a temporary message that was never saved
-            if (this.isTemporaryMessage(messageId)) {
-                console.log('📝 Temporary message detected, skipping MongoDB deletion:', messageId);
+            if (this.isTemporaryMessage(message._id)) {
+                console.log('📝 Temporary message detected, skipping MongoDB deletion:', message._id);
                 return { success: true, found: false };
             }
 
-            const url = `${this.baseUrl}/api/messages/${messageId}`;
+            const url = `${this.baseUrl}/api/delete/messages/${message._id}`;
 
-            console.log('🗄️ Deleting message from MongoDB:', messageId);
+            // console.log('🗄️ Deleting message from MongoDB:', {
+            //     messageType: message.messageType,
+            //     mediaUrl: this.getMediaUrl(message),
+            //     conversationId: message.conversationId
+            // })
+            console.log("message", message);
+            
 
             const response = await fetch(url, {
                 method: 'DELETE',
                 headers: this.getHeaders(),
+                body: JSON.stringify({
+                    messageType: message.messageType,
+                    mediaUrl: this.getMediaUrl(message),
+                    conversation_id: message.conversation_id
+                })
+                
             });
 
             console.log('📥 MongoDB deletion response:', response.status, response.statusText);
@@ -199,7 +211,7 @@ class MessageDeletionService {
             const isTemporary = this.isTemporaryMessage(message._id);
 
             // Step 1: Delete from MongoDB (skip if temporary message)
-            const mongoResult = await this.deleteFromMongoDB(message._id);
+            const mongoResult = await this.deleteFromMongoDB(message);
 
             if (!mongoResult.success && mongoResult.found) {
                 // Message exists in MongoDB but failed to delete

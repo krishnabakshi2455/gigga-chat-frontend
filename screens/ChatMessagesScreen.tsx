@@ -58,6 +58,8 @@ const ChatMessagesScreen = () => {
                 console.log('📥 Loading historical messages...');
 
                 const historicalMessages = await messageService.fetchMessages(userId, _id);
+                // console.log("historicalMessages", historicalMessages[0]);
+
 
                 if (historicalMessages.length > 0) {
                     setMessages(historicalMessages);
@@ -405,7 +407,8 @@ const ChatMessagesScreen = () => {
                             {/* Messages */}
                             {!loadingMessages && messages.map((item, index) => {
                                 const isSelected = selectedMessages.includes(item._id);
-
+                                // console.log("item.conversationId",item.conversationId);
+                                
                                 return (
                                     <MessageBubble
                                         key={item._id || index}

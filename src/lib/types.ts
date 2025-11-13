@@ -7,7 +7,7 @@ export interface Message {
     message?: string;
     imageUrl?: string;
     timeStamp: string;
-    conversationId?: string;
+    conversation_id?: string;
 }
 export interface BackendMessageData extends Omit<Message, "_id" | "senderId"> {
     senderId: string
