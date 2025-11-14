@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { DeleteMessageRequest, DeleteResponse, ExtendedMessage } from '../lib/types';
+import { ExtendedMessage } from '../lib/types';
 
 class MessageDeletionService {
     private baseUrl: string;
@@ -74,29 +74,28 @@ class MessageDeletionService {
     }
 
     /**
-     * Delete message from MongoDB (all message types: text, image, audio, video)
+     * Delete message from MongoDB AND Cloudinary (backend handles both in one request)
      * Returns an object with success status and whether the message was found
      */
-    private async deleteFromMongoDB(message: ExtendedMessage): Promise<{
+    private async deleteMessage(message: ExtendedMessage): Promise<{
         success: boolean;
         found: boolean;
     }> {
         try {
             // Check if this is a temporary message that was never saved
             if (this.isTemporaryMessage(message._id)) {
-                console.log('📝 Temporary message detected, skipping MongoDB deletion:', message._id);
+                console.log('📝 Temporary message detected, skipping backend deletion:', message._id);
                 return { success: true, found: false };
             }
 
             const url = `${this.baseUrl}/api/delete/messages/${message._id}`;
 
-            // console.log('🗄️ Deleting message from MongoDB:', {
+            // console.log('🗄️ Deleting message (MongoDB + Cloudinary):', {
+            //     messageId: message._id,
             //     messageType: message.messageType,
-            //     mediaUrl: this.getMediaUrl(message),
-            //     conversationId: message.conversationId
-            // })
-            console.log("message", message);
-            
+            //     hasMedia: this.hasMedia(message),
+            //     conversationId: message.conversation_id
+            // });
 
             const response = await fetch(url, {
                 method: 'DELETE',
@@ -106,148 +105,65 @@ class MessageDeletionService {
                     mediaUrl: this.getMediaUrl(message),
                     conversation_id: message.conversation_id
                 })
-                
             });
 
-            console.log('📥 MongoDB deletion response:', response.status, response.statusText);
+            console.log('📥 Backend deletion response:', response.status, response.statusText);
 
             const contentType = response.headers.get('content-type');
 
             if (!contentType || !contentType.includes('application/json')) {
                 const textResponse = await response.text();
-                console.error('❌ Non-JSON response from MongoDB:', textResponse.substring(0, 200));
+                console.error('❌ Non-JSON response from backend:', textResponse.substring(0, 200));
                 return { success: false, found: false };
             }
 
             const data = await response.json();
 
             if (!response.ok) {
-                console.error('❌ MongoDB deletion error:', data.message);
+                console.error('❌ Backend deletion error:', data.message);
                 return { success: false, found: true };
             }
 
-            console.log('✅ Message deleted from MongoDB successfully');
+            // console.log('✅ Message deleted successfully:', {
+            //     deletedFromDB: data.deletedFromDB,
+            //     deletedFromCloudinary: data.deletedFromCloudinary
+            // });
+
             return { success: true, found: true };
 
         } catch (error: any) {
-            console.error('❌ Error deleting from MongoDB:', error.message);
+            console.error('❌ Error deleting message:', error.message);
             return { success: false, found: false };
         }
     }
 
     /**
-     * Delete media from Cloudinary (only for image, audio, video messages)
-     * Backend handles temporary/unsent messages automatically
-     */
-    private async deleteFromCloudinary(message: ExtendedMessage): Promise<boolean> {
-        try {
-            const mediaUrl = this.getMediaUrl(message);
-
-            if (!mediaUrl) {
-                console.log('⚠️ No media URL found, skipping Cloudinary deletion');
-                return true; // Not an error, just no media to delete
-            }
-
-            const url = `${this.baseUrl}/api/delete/messages/${message._id}`;
-
-            console.log('☁️ Deleting media from Cloudinary:', {
-                messageId: message._id,
-                type: message.messageType,
-                mediaUrl: mediaUrl
-            });
-
-            const requestBody: DeleteMessageRequest = {
-                messageType: message.messageType,
-                mediaUrl: mediaUrl,
-            };
-
-            const response = await fetch(url, {
-                method: 'DELETE',
-                headers: this.getHeaders(),
-                body: JSON.stringify(requestBody),
-            });
-
-            console.log('📥 Cloudinary deletion response:', response.status, response.statusText);
-
-            const contentType = response.headers.get('content-type');
-
-            if (!contentType || !contentType.includes('application/json')) {
-                const textResponse = await response.text();
-                console.error('❌ Non-JSON response from Cloudinary:', textResponse.substring(0, 200));
-                return false;
-            }
-
-            const data: DeleteResponse = await response.json();
-
-            if (!response.ok) {
-                console.error('❌ Cloudinary deletion error:', data.message);
-                return false;
-            }
-
-            console.log('✅ Media deleted from Cloudinary successfully');
-            return true;
-
-        } catch (error: any) {
-            console.error('❌ Error deleting from Cloudinary:', error.message);
-            return false;
-        }
-    }
-
-    /**
      * Delete a single message (text, image, audio, or video)
-     * Handles both MongoDB deletion and Cloudinary deletion (if media exists)
+     * Backend handles both MongoDB deletion and Cloudinary deletion in one request
      * Works with temporary/unsent messages
      */
     async deleteSingleMessage(message: ExtendedMessage): Promise<boolean> {
         try {
-            console.log('🗑️ Starting deletion process for message:', {
-                id: message._id,
-                type: message.messageType,
-                hasMedia: this.hasMedia(message),
-                isTemporary: this.isTemporaryMessage(message._id)
-            });
+            // console.log('🗑️ Starting deletion process for message:', {
+            //     id: message._id,
+            //     type: message.messageType,
+            //     hasMedia: this.hasMedia(message),
+            //     isTemporary: this.isTemporaryMessage(message._id)
+            // });
 
-            let cloudinarySuccess = true;
             const isTemporary = this.isTemporaryMessage(message._id);
 
-            // Step 1: Delete from MongoDB (skip if temporary message)
-            const mongoResult = await this.deleteFromMongoDB(message);
+            // Single DELETE request - backend handles both MongoDB and Cloudinary
+            const result = await this.deleteMessage(message);
 
-            if (!mongoResult.success && mongoResult.found) {
-                // Message exists in MongoDB but failed to delete
-                Alert.alert('Error', 'Failed to delete message from database');
+            if (!result.success && result.found) {
+                // Message exists in backend but failed to delete
+                Alert.alert('Error', 'Failed to delete message from server');
                 return false;
             }
 
-            // Step 2: Delete from Cloudinary (if message has media)
-            // Backend handles temporary messages, so we always try to delete media
-            if (this.hasMedia(message)) {
-                console.log('📎 Message has media, proceeding with Cloudinary deletion');
-                cloudinarySuccess = await this.deleteFromCloudinary(message);
-
-                if (!cloudinarySuccess) {
-                    if (mongoResult.found) {
-                        console.warn('⚠️ Media deletion from Cloudinary failed, but MongoDB deletion succeeded');
-                        Alert.alert(
-                            'Partial Success',
-                            'Message deleted from database, but media file deletion failed.'
-                        );
-                    } else if (isTemporary) {
-                        console.warn('⚠️ Media deletion from Cloudinary failed for temporary message');
-                        Alert.alert(
-                            'Warning',
-                            'Failed to delete media file. The backend will handle cleanup.'
-                        );
-                    }
-                    // Still return true to allow UI cleanup
-                    return true;
-                }
-            } else {
-                console.log('📝 Text message - no Cloudinary deletion needed');
-            }
-
             // Provide feedback for temporary messages
-            if (isTemporary || !mongoResult.found) {
+            if (isTemporary || !result.found) {
                 console.log('✅ Temporary/unsent message removed from local view');
             } else {
                 console.log('✅ Message deletion completed successfully');

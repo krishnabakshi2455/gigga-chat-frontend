@@ -11,27 +11,16 @@ export interface CloudinaryUploadOptions {
     onUploadProgress?: (progress: number) => void;
 }
 
-export interface DeleteMediaRequest {
-    publicId: string;
-    resourceType: 'image' | 'video';
-}
-
-export interface DeleteMediaResponse {
-    success: boolean;
-    message: string;
-    result?: any;
-}
-
 export class CloudinaryService {
     private static instance: CloudinaryService;
 
-    private constructor() {
-        console.log('🔧 Cloudinary Configuration Status:', {
-            cloudName: CLOUDINARY_CLOUD_NAME ? `✅ ${CLOUDINARY_CLOUD_NAME}` : '❌ Missing',
-            uploadPreset: CLOUDINARY_UPLOAD_PRESET ? '✅ Set' : '❌ Missing',
-            backendUrl: BACKEND_API_URL ? `✅ ${BACKEND_API_URL}` : '❌ Missing'
-        });
-    }
+    // private constructor() {
+    //     console.log('🔧 Cloudinary Configuration Status:', {
+    //         cloudName: CLOUDINARY_CLOUD_NAME ? `✅ ${CLOUDINARY_CLOUD_NAME}` : '❌ Missing',
+    //         uploadPreset: CLOUDINARY_UPLOAD_PRESET ? '✅ Set' : '❌ Missing',
+    //         backendUrl: BACKEND_API_URL ? `✅ ${BACKEND_API_URL}` : '❌ Missing'
+    //     });
+    // }
 
     public static getInstance(): CloudinaryService {
         if (!CloudinaryService.instance) {
@@ -193,111 +182,6 @@ export class CloudinaryService {
     public async uploadAudio(audioUri: string, options?: CloudinaryUploadOptions): Promise<string | null> {
         console.log('🎤 Starting audio upload...');
         return this.uploadFile(audioUri, 'audio', options);
-    }
-
-    // DELETE METHODS
-    public async deleteMedia(
-        mediaUrl: string,
-        resourceType: 'image' | 'video' = 'image',
-        userToken: string
-    ): Promise<boolean> {
-        try {
-            const publicId = this.extractPublicId(mediaUrl);
-
-            if (!publicId) {
-                console.warn('❌ Could not extract public_id from URL:', mediaUrl);
-                return false;
-            }
-
-            if (!userToken) {
-                throw new Error('User token is required for media deletion');
-            }
-
-            if (!BACKEND_API_URL) {
-                throw new Error('BACKEND_API_URL is not configured');
-            }
-
-            const deleteRequest: DeleteMediaRequest = {
-                publicId,
-                resourceType
-            };
-
-            console.log('🗑️ Sending deletion request to backend:', deleteRequest);
-
-            const response = await fetch(`${BACKEND_API_URL}/api/cloudinary/delete-media`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userToken}`,
-                },
-                body: JSON.stringify(deleteRequest),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Backend deletion failed: ${response.status} - ${errorText}`);
-            }
-
-            const result: DeleteMediaResponse = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.message);
-            }
-
-            console.log('✅ Successfully deleted media from Cloudinary:', publicId);
-            return true;
-
-        } catch (error: any) {
-            console.error('❌ Delete media error:', error);
-
-            Alert.alert(
-                'Deletion Failed',
-                `Could not delete media from server: ${error.message}`,
-                [{ text: 'OK' }]
-            );
-
-            return false;
-        }
-    }
-
-    public async deleteMultipleMedia(
-        mediaUrls: string[],
-        userToken: string
-    ): Promise<number> {
-        let deletedCount = 0;
-
-        for (const url of mediaUrls) {
-            const resourceType = this.getResourceTypeFromUrl(url);
-            const success = await this.deleteMedia(url, resourceType, userToken);
-            if (success) deletedCount++;
-        }
-
-        console.log(`🗑️ Deleted ${deletedCount}/${mediaUrls.length} files from Cloudinary`);
-        return deletedCount;
-    }
-
-    private getResourceTypeFromUrl(url: string): 'image' | 'video' {
-        const audioExtensions = ['.m4a', '.mp3', '.wav', '.aac', '.ogg', '.webm'];
-        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif'];
-
-        const extension = url.toLowerCase().split('.').pop() || '';
-
-        if (audioExtensions.includes(`.${extension}`)) {
-            return 'video';
-        }
-
-        return 'image';
-    }
-
-    private extractPublicId(url: string): string | null {
-        try {
-            const cloudinaryRegex = /res\.cloudinary\.com\/[^/]+\/(image|video)\/upload\/(?:v\d+\/)?(.+?)\.\w+$/;
-            const match = url.match(cloudinaryRegex);
-            return match ? match[2] : null;
-        } catch (error) {
-            console.error('Error extracting public_id:', error);
-            return null;
-        }
     }
 
     public isConfigured(): boolean {
