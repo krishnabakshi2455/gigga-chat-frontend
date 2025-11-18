@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 
 class SocketService {
     private static instance: SocketService;
-    private socket: Socket | null = null;
+    socket: Socket | null = null;
     private isConnected = false;
     private eventListeners: Map<string, Function[]> = new Map();
     private reconnectAttempts = 0;
@@ -21,31 +21,23 @@ class SocketService {
     connect(token: string, userId: string): Promise<boolean> {
         return new Promise((resolve) => {
             console.log('🔄 Attempting to connect to:', BACKEND_URL);
-            console.log('👤 User Present:', userId ? true : false);
-            console.log('🔑 Token:', token ? 'Present' : 'Missing');
 
-            // Disconnect if already connected
             if (this.socket) {
                 console.log('🔌 Disconnecting existing socket...');
                 this.disconnect();
             }
 
-            // Validate BACKEND_URL
             if (!BACKEND_URL) {
                 console.error('❌ BACKEND_URL is not defined!');
                 resolve(false);
                 return;
             }
 
-            // Connect to server with improved configuration
             this.socket = io(BACKEND_URL, {
-                auth: {
-                    token: token,
-                    userId: userId
-                },
+                auth: { token, userId },
                 transports: ['websocket', 'polling'],
                 forceNew: true,
-                timeout: 20000, // Increased timeout to 20 seconds
+                timeout: 20000,
                 reconnection: true,
                 reconnectionAttempts: this.maxReconnectAttempts,
                 reconnectionDelay: 1000,
@@ -53,10 +45,8 @@ class SocketService {
                 autoConnect: true,
             });
 
-            // Connection events
             this.socket.on('connect', () => {
                 console.log('✅ Socket connected successfully!');
-                // console.log('🆔 Socket ID:', this.socket?.id);
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 resolve(true);
@@ -65,57 +55,23 @@ class SocketService {
             this.socket.on('disconnect', (reason) => {
                 console.log('❌ Disconnected from server. Reason:', reason);
                 this.isConnected = false;
-
                 if (reason === 'io server disconnect') {
-                    // Server disconnected the socket, manually reconnect
-                    console.log('🔄 Server disconnected, attempting to reconnect...');
                     this.socket?.connect();
                 }
             });
 
             this.socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error.message);
-                console.error('Error details:', error);
                 this.isConnected = false;
                 this.reconnectAttempts++;
-
                 if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                    console.error('❌ Max reconnection attempts reached');
                     resolve(false);
                 }
             });
 
-            this.socket.on('connect_timeout', () => {
-                console.error('⏱️ Connection timeout');
-                this.isConnected = false;
-            });
-
-            this.socket.on('error', (error) => {
-                console.error('❌ Socket error:', error);
-            });
-
-            this.socket.on('reconnect', (attemptNumber) => {
-                console.log(`🔄 Reconnected after ${attemptNumber} attempts`);
-                this.isConnected = true;
-            });
-
-            this.socket.on('reconnect_attempt', (attemptNumber) => {
-                console.log(`🔄 Reconnection attempt ${attemptNumber}/${this.maxReconnectAttempts}`);
-            });
-
-            this.socket.on('reconnect_error', (error) => {
-                console.error('❌ Reconnection error:', error.message);
-            });
-
-            this.socket.on('reconnect_failed', () => {
-                console.error('❌ Reconnection failed after all attempts');
-                resolve(false);
-            });
-
-            // Set timeout for initial connection
             setTimeout(() => {
                 if (!this.isConnected) {
-                    console.error('❌ Initial connection timeout after 20 seconds');
+                    console.error('❌ Initial connection timeout');
                     resolve(false);
                 }
             }, 20000);
@@ -124,7 +80,6 @@ class SocketService {
 
     disconnect() {
         if (this.socket) {
-            console.log('🔌 Disconnecting socket...');
             this.socket.disconnect();
             this.socket = null;
             this.isConnected = false;
@@ -133,20 +88,17 @@ class SocketService {
         this.eventListeners.clear();
     }
 
-    // Send message
+    // ============================================
+    // TEXT MESSAGING METHODS
+    // ============================================
+
     sendMessage(receiverId: string, message: string, messageType: string = 'text'): boolean {
         if (!this.socket || !this.isConnected) {
-            console.warn('⚠️ Socket not connected, message not sent');
+            console.warn('⚠️ Socket not connected');
             return false;
         }
-
         try {
-            // console.log('📤 Sending message to:', receiverId);
-            this.socket.emit('send_message', {
-                receiverId,
-                message,
-                messageType
-            });
+            this.socket.emit('send_message', { receiverId, message, messageType });
             return true;
         } catch (error) {
             console.error('❌ Error sending message:', error);
@@ -154,19 +106,14 @@ class SocketService {
         }
     }
 
-    // Send image message
     sendImageMessage(receiverId: string, imageUrl: string): boolean {
-        console.log('📤 Sending image message to:', receiverId);
         return this.sendMessage(receiverId, imageUrl, 'image');
     }
 
-    // Send audio message
     sendAudioMessage(receiverId: string, audioUrl: string): boolean {
-        console.log('📤 Sending audio message to:', receiverId);
         return this.sendMessage(receiverId, audioUrl, 'audio');
     }
 
-    // Typing indicators
     startTyping(receiverId: string) {
         if (this.socket && this.isConnected) {
             this.socket.emit('typing_start', { receiverId });
@@ -179,12 +126,157 @@ class SocketService {
         }
     }
 
-    // Listen for events
+    // ============================================
+    // CONVERSATION MANAGEMENT
+    // ============================================
+
+    joinConversation(otherUserId: string) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('join_conversation', { otherUserId });
+        }
+    }
+
+    leaveConversation(otherUserId: string) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('leave_conversation', { otherUserId });
+        }
+    }
+
+    checkConversationStatus(otherUserId: string) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('get_conversation_status', { otherUserId });
+        }
+    }
+
+    // ============================================
+    // ENHANCED WEBRTC CALL SIGNALING
+    // ============================================
+
+    initiateCall(
+        recipientId: string,
+        callType: 'video' | 'audio',
+        callerId: string,
+        callerName: string,
+        callerImage?: string
+    ): string | null {
+        if (!this.socket || !this.isConnected) {
+            console.warn('⚠️ Socket not connected');
+            return null;
+        }
+        try {
+            const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            this.socket.emit('call:initiate', {
+                callId,
+                recipientId,
+                callType,
+                callerId,
+                callerName,
+                callerImage,
+                timestamp: new Date().toISOString(),
+            });
+            console.log('📞 Call initiated:', callId, callType);
+            return callId;
+        } catch (error) {
+            console.error('❌ Error initiating call:', error);
+            return null;
+        }
+    }
+
+    acceptCall(callId: string, callerId: string): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('call:accept', { callId, callerId });
+            console.log('✅ Call accepted:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error accepting call:', error);
+            return false;
+        }
+    }
+
+    rejectCall(callId: string, callerId: string, reason?: string): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('call:reject', {
+                callId,
+                callerId,
+                reason: reason || 'Call rejected'
+            });
+            console.log('❌ Call rejected:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error rejecting call:', error);
+            return false;
+        }
+    }
+
+    endCall(callId: string, recipientId: string): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('call:end', { callId, recipientId });
+            console.log('📴 Call ended:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error ending call:', error);
+            return false;
+        }
+    }
+
+    sendWebRTCOffer(callId: string, recipientId: string, offer: any): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('webrtc:offer', { callId, recipientId, offer });
+            console.log('📤 Offer sent for call:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error sending offer:', error);
+            return false;
+        }
+    }
+
+    sendWebRTCAnswer(callId: string, recipientId: string, answer: any): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('webrtc:answer', { callId, recipientId, answer });
+            console.log('📤 Answer sent for call:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error sending answer:', error);
+            return false;
+        }
+    }
+
+    sendICECandidate(callId: string, recipientId: string, candidate: any): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('webrtc:ice-candidate', { callId, recipientId, candidate });
+            console.log('🧊 ICE candidate sent for call:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error sending ICE candidate:', error);
+            return false;
+        }
+    }
+
+    callTimeout(callId: string, recipientId: string): boolean {
+        if (!this.socket || !this.isConnected) return false;
+        try {
+            this.socket.emit('call:timeout', { callId, recipientId });
+            console.log('⏰ Call timeout:', callId);
+            return true;
+        } catch (error) {
+            console.error('❌ Error sending call timeout:', error);
+            return false;
+        }
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+
     on(event: string, callback: (...args: any[]) => void) {
         if (this.socket) {
             this.socket.on(event, callback);
-
-            // Store reference for cleanup
             if (!this.eventListeners.has(event)) {
                 this.eventListeners.set(event, []);
             }
@@ -192,44 +284,14 @@ class SocketService {
         }
     }
 
-    // Join a conversation when user opens a chat
-    joinConversation(otherUserId: string) {
-        if (this.socket && this.isConnected) {
-            // console.log('👥 Joining conversation with:', otherUserId);
-            this.socket.emit('join_conversation', { otherUserId });
-        } else {
-            console.warn('⚠️ Cannot join conversation - socket not connected');
-        }
-    }
-
-    // Leave conversation when user closes chat
-    leaveConversation(otherUserId: string) {
-        if (this.socket && this.isConnected) {
-            // console.log('👋 Leaving conversation with:', otherUserId);
-            this.socket.emit('leave_conversation', { otherUserId });
-        }
-    }
-
-    // Check if other user is online in conversation
-    checkConversationStatus(otherUserId: string) {
-        if (this.socket && this.isConnected) {
-            this.socket.emit('get_conversation_status', { otherUserId });
-        }
-    }
-
-    // Remove specific listener
     off(event: string, callback?: Function) {
         if (this.socket) {
             if (callback) {
                 this.socket.off(event, callback as any);
-
-                // Remove from stored listeners
                 const listeners = this.eventListeners.get(event);
                 if (listeners) {
                     const index = listeners.indexOf(callback);
-                    if (index > -1) {
-                        listeners.splice(index, 1);
-                    }
+                    if (index > -1) listeners.splice(index, 1);
                 }
             } else {
                 this.socket.off(event);
@@ -238,29 +300,23 @@ class SocketService {
         }
     }
 
-    // Remove all listeners
     removeAllListeners(): void {
         try {
-            if (this.socket) {
-                this.socket.removeAllListeners();
-            }
+            if (this.socket) this.socket.removeAllListeners();
             this.eventListeners.clear();
-            console.log('🧹 All socket listeners removed');
+            console.log('🧹 Listeners removed');
         } catch (error) {
-            console.warn('⚠️ Error removing socket listeners:', error);
+            console.warn('⚠️ Error removing listeners:', error);
         }
     }
 
-    // Get connection status
     getConnectionStatus(): boolean {
         return this.isConnected;
     }
 
-    // Get socket instance (for debugging)
     getSocket(): Socket | null {
         return this.socket;
     }
 }
 
-// Create a singleton instance
 export const socketService = SocketService.getInstance();

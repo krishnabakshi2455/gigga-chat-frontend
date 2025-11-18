@@ -9,6 +9,26 @@ export interface Message {
     timeStamp: string;
     conversation_id?: string;
 }
+export type CallType = 'video' | 'audio';
+
+export interface IncomingCallModalProps {
+    visible: boolean;
+    callerName: string;
+    callType: CallType;
+    onAccept: () => void;
+    onReject: () => void;
+}
+
+export interface CallScreenProps {
+    recipientId: string;
+    recipientName: string;
+    callType: CallType;
+    isIncoming: boolean;
+    callId: string;
+    onEndCall: () => void;
+}
+
+
 export interface BackendMessageData extends Omit<Message, "_id" | "senderId"> {
     senderId: string
     receiverId: string;
@@ -90,4 +110,15 @@ export interface SendMessageOptions {
     scrollToBottom: () => void;
     connectionStatus: "connecting" | "connected" | "disconnected";
     onUploadProgress?: (progress: number) => void;
+}
+
+export interface CallData {
+    callId: string;
+    callType: 'video' | 'audio';
+    callerId: string;
+    callerName: string;
+    callerImage?: string;
+    recipientId: string;
+    recipientName?: string;
+    timestamp: string;
 }

@@ -1,3 +1,4 @@
+import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import {
     Text,
     View,
@@ -10,22 +11,39 @@ import {
     AppState,
     ActivityIndicator
 } from "react-native";
-import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAtom } from "jotai";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { CallData, ExtendedMessage, RecipientData } from "../src/lib/types";
 import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store";
-import { ExtendedMessage, RecipientData } from "../src/lib/types";
-import { requestPermissions } from "../src/lib/utils/permissionUtils";
-import { socketService } from "../src/services/socketServices";
 import { messageService } from "../src/services/MessageService";
+import { socketService } from "../src/services/socketServices";
 import { cloudinaryService } from "../src/services/CloudinaryService";
+import { requestPermissions } from "../src/lib/utils/permissionUtils";
+import { callService } from "../src/services/CallService";
 import { startRecording, stopRecording } from "../src/lib/hooks/AudioRecorder";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/lib/hooks/ImagePicker";
 import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";
-import { MessageInput } from "../components/chatMessage/MessageInput";
+import IncomingCallScreen from "../components/call_chat/IncomingCallScreen";
+import CallScreen from "../components/call_chat/CallScreen";
 import MessageBubble from "../components/chatMessage/MessageBubble";
+import { MessageInput } from "../components/chatMessage/MessageInput";
 import { messageDeletionService } from "../src/services/DeleteMessage";
+// import { userIdAtom, userTokenAtom } from "../lib/store/userId.store";
+// import { ExtendedMessage, RecipientData } from "../lib/types";
+// import { requestPermissions } from "../lib/utils/permissionUtils";
+// import { socketService } from "../services/SocketService";
+// import { messageService } from "../services/MessageService";
+// import { cloudinaryService } from "../services/CloudinaryService";
+// import { startRecording, stopRecording } from "../lib/hooks/AudioRecorder";
+// import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../lib/hooks/ImagePicker";
+// import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";
+// import { MessageInput } from "../components/chatMessage/MessageInput";
+// import MessageBubble from "../components/chatMessage/MessageBubble";
+// import { messageDeletionService } from "../services/DeleteMessage";
+// import { callService, CallData } from "../services/CallService";
+// import CallScreen from "../components/call/CallScreen";
+// import IncomingCallScreen from "../components/call/IncomingCallScreen";
 
 const ChatMessagesScreen = () => {
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -44,31 +62,27 @@ const ChatMessagesScreen = () => {
     const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
     const [uploadingMedia, setUploadingMedia] = useState(false);
-    const [loadingMessages, setLoadingMessages] = useState(true); // NEW: Loading state
+    const [loadingMessages, setLoadingMessages] = useState(true);
+
+    // Call states
+    const [activeCall, setActiveCall] = useState<CallData | null>(null);
+    const [incomingCall, setIncomingCall] = useState<CallData | null>(null);
+    const [showCallScreen, setShowCallScreen] = useState(false);
 
     const scrollViewRef = useRef<ScrollView>(null);
 
-    // NEW: Fetch historical messages when component mounts
+    // Fetch historical messages
     useEffect(() => {
         const loadMessages = async () => {
             if (!userId || !_id) return;
 
             try {
                 setLoadingMessages(true);
-                console.log('📥 Loading historical messages...');
-
                 const historicalMessages = await messageService.fetchMessages(userId, _id);
-                // console.log("historicalMessages", historicalMessages[0]);
-
 
                 if (historicalMessages.length > 0) {
                     setMessages(historicalMessages);
-                    console.log('✅ Loaded', historicalMessages.length, 'messages');
-
-                    // Scroll to bottom after messages are loaded
                     setTimeout(() => scrollToBottom(), 300);
-                } else {
-                    console.log('ℹ️ No previous messages found');
                 }
             } catch (error) {
                 console.error('❌ Error loading messages:', error);
@@ -79,6 +93,56 @@ const ChatMessagesScreen = () => {
 
         loadMessages();
     }, [userId, _id]);
+
+    // Call event handlers
+    useEffect(() => {
+        // Incoming call listener
+        socketService.on('call:incoming', (data: CallData) => {
+            console.log('📞 Incoming call:', data);
+            setIncomingCall(data);
+        });
+
+        // Call accepted listener
+        socketService.on('call:accepted', (data: any) => {
+            console.log('✅ Call accepted:', data);
+            setActiveCall(incomingCall);
+            setIncomingCall(null);
+            setShowCallScreen(true);
+        });
+
+        // Call rejected listener
+        socketService.on('call:rejected', (data: any) => {
+            console.log('❌ Call rejected:', data);
+            Alert.alert('Call Rejected', 'The recipient rejected your call');
+            setActiveCall(null);
+            setIncomingCall(null);
+            setShowCallScreen(false);
+        });
+
+        // Call ended listener
+        socketService.on('call:ended', (data: any) => {
+            console.log('📴 Call ended:', data);
+            setActiveCall(null);
+            setIncomingCall(null);
+            setShowCallScreen(false);
+        });
+
+        // Call timeout listener
+        socketService.on('call:timeout', (data: any) => {
+            console.log('⏰ Call timeout:', data);
+            Alert.alert('Call Timeout', 'The recipient did not answer');
+            setActiveCall(null);
+            setShowCallScreen(false);
+        });
+
+        return () => {
+            socketService.off('call:incoming');
+            socketService.off('call:accepted');
+            socketService.off('call:rejected');
+            socketService.off('call:ended');
+            socketService.off('call:timeout');
+        };
+    }, [incomingCall]);
 
     // Media Upload Handlers
     const handleImageUpload = async (imageUri: string) => {
@@ -103,7 +167,7 @@ const ChatMessagesScreen = () => {
         }
     };
 
-    // Create handlers using the message service
+    // Message event handlers
     const handleReceiveMessage = useCallback((data: any) => {
         messageService.handleReceiveMessage(data, _id, userId, setMessages, scrollToBottom);
     }, [_id, userId]);
@@ -132,17 +196,10 @@ const ChatMessagesScreen = () => {
         messageService.handleTextChange(text, setMessage, _id, connectionStatus);
     };
 
+    // Socket connection and event setup
     useEffect(() => {
-        // Check if Cloudinary is properly configured
-        if (!cloudinaryService.isConfigured()) {
-            console.warn('⚠️ Cloudinary is not properly configured. Media uploads will fail.');
-            const configStatus = cloudinaryService.getConfigurationStatus();
-            console.log('Cloudinary config status:', configStatus.uploadPreset);
-        }
-
         requestPermissions();
 
-        // Connect to socket when component mounts
         if (userId && userToken && _id) {
             const initializeSocket = async () => {
                 setConnectionStatus('connecting');
@@ -152,11 +209,9 @@ const ChatMessagesScreen = () => {
 
                     if (connected) {
                         console.log('🔌 Socket connected, joining conversation...');
-
-                        // Join the conversation with the other user
                         socketService.joinConversation(_id);
 
-                        // Set up all event listeners
+                        // Set up message event listeners
                         socketService.on('receive_message', handleReceiveMessage);
                         socketService.on('user_typing', handleUserTyping);
                         socketService.on('conversation_joined', handleConversationJoined);
@@ -178,20 +233,16 @@ const ChatMessagesScreen = () => {
             initializeSocket();
         }
 
-        // Handle app state changes (foreground/background)
         const subscription = AppState.addEventListener('change', nextAppState => {
             if (nextAppState === 'active' && userId && userToken && _id) {
-                // Reconnect when app comes to foreground
                 socketService.connect(userToken, userId).then(() => {
                     socketService.joinConversation(_id);
                 });
             } else if (nextAppState === 'background') {
-                // Leave conversation when app goes to background
                 socketService.leaveConversation(_id);
             }
         });
 
-        // Keyboard event listeners
         const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
             setKeyboardHeight(e.endCoordinates.height);
             scrollToBottom();
@@ -200,19 +251,15 @@ const ChatMessagesScreen = () => {
             setKeyboardHeight(0);
         });
 
-        // Clean up on component unmount
         return () => {
             subscription.remove();
             showSubscription.remove();
             hideSubscription.remove();
 
-            // Leave conversation and clean up socket
             if (_id) {
                 socketService.leaveConversation(_id);
             }
             socketService.removeAllListeners();
-
-            // Clean up message service
             messageService.cleanup();
         };
     }, [userId, userToken, _id, handleReceiveMessage, handleUserTyping, handleConversationJoined, handleUserJoinedConversation, handleUserLeftConversation, handleMessageSent]);
@@ -262,6 +309,118 @@ const ChatMessagesScreen = () => {
         );
     };
 
+    // Call handlers
+    const handleVideoCall = async () => {
+        if (!recepientData || !userId) return;
+
+        try {
+            const callId = await callService.initiateCall(
+                _id,
+                'video',
+                userId,
+                'You', // Replace with actual user name
+                undefined // Add user image if available
+            );
+
+            if (callId) {
+                const callData: CallData = {
+                    callId,
+                    callType: 'video',
+                    callerId: userId,
+                    callerName: 'You',
+                    recipientId: _id,
+                    recipientName: recepientData.name,
+                    timestamp: new Date().toISOString()
+                };
+                setActiveCall(callData);
+                setShowCallScreen(true);
+
+                // Set timeout for unanswered call
+                setTimeout(() => {
+                    if (showCallScreen && activeCall?.callId === callId) {
+                        socketService.callTimeout(callId, _id);
+                        setShowCallScreen(false);
+                        setActiveCall(null);
+                        Alert.alert('Call Timeout', 'No answer from recipient');
+                    }
+                }, 30000); // 30 second timeout
+            } else {
+                Alert.alert('Call Failed', 'Could not initiate video call');
+            }
+        } catch (error) {
+            console.error('Error initiating video call:', error);
+            Alert.alert('Call Failed', 'An error occurred while initiating the call');
+        }
+    };
+
+    const handleAudioCall = async () => {
+        if (!recepientData || !userId) return;
+
+        try {
+            const callId = await callService.initiateCall(
+                _id,
+                'audio',
+                userId,
+                'You', // Replace with actual user name
+                undefined // Add user image if available
+            );
+
+            if (callId) {
+                const callData: CallData = {
+                    callId,
+                    callType: 'audio',
+                    callerId: userId,
+                    callerName: 'You',
+                    recipientId: _id,
+                    recipientName: recepientData.name,
+                    timestamp: new Date().toISOString()
+                };
+                setActiveCall(callData);
+                setShowCallScreen(true);
+
+                // Set timeout for unanswered call
+                setTimeout(() => {
+                    if (showCallScreen && activeCall?.callId === callId) {
+                        socketService.callTimeout(callId, _id);
+                        setShowCallScreen(false);
+                        setActiveCall(null);
+                        Alert.alert('Call Timeout', 'No answer from recipient');
+                    }
+                }, 30000); // 30 second timeout
+            } else {
+                Alert.alert('Call Failed', 'Could not initiate audio call');
+            }
+        } catch (error) {
+            console.error('Error initiating audio call:', error);
+            Alert.alert('Call Failed', 'An error occurred while initiating the call');
+        }
+    };
+
+    const handleCallEnd = () => {
+        if (activeCall) {
+            callService.endCall();
+        }
+        setShowCallScreen(false);
+        setActiveCall(null);
+        setIncomingCall(null);
+    };
+
+    const handleAcceptIncomingCall = () => {
+        if (incomingCall) {
+            callService.acceptCall(incomingCall.callId, incomingCall.callerId);
+            setActiveCall(incomingCall);
+            setIncomingCall(null);
+            setShowCallScreen(true);
+        }
+    };
+
+    const handleRejectIncomingCall = () => {
+        if (incomingCall) {
+            callService.rejectCall(incomingCall.callId, incomingCall.callerId);
+            setIncomingCall(null);
+        }
+    };
+
     const handleImageSelected = (uri: string) => {
         handleImageUpload(uri);
     };
@@ -296,7 +455,6 @@ const ChatMessagesScreen = () => {
     const handleDeleteMessage = async () => {
         if (selectedMessages.length === 0) return;
 
-        // Get the full message objects from selected IDs
         const messagesToDelete = messages.filter(msg =>
             selectedMessages.includes(msg._id)
         );
@@ -304,21 +462,12 @@ const ChatMessagesScreen = () => {
         await messageDeletionService.deleteMessagesWithConfirmation(
             messagesToDelete,
             () => {
-                // On success, remove from UI
                 setMessages(prevMessages =>
                     prevMessages.filter(msg => !selectedMessages.includes(msg._id))
                 );
                 setSelectedMessages([]);
             }
         );
-    };
-
-    const handleVideoCall = () => {
-        console.log("Initiating video call with:", recepientData?.name);
-    };
-
-    const handleAudioCall = () => {
-        console.log("Initiating audio call with:", recepientData?.name);
     };
 
     const handleShowImagePicker = () => {
@@ -379,71 +528,87 @@ const ChatMessagesScreen = () => {
                             </View>
                         )}
 
-                        {/* Messages ScrollView */}
-                        <ScrollView
-                            ref={scrollViewRef}
-                            className="flex-1"
-                            onContentSizeChange={handleContentSizeChange}
-                            keyboardDismissMode="on-drag"
-                            keyboardShouldPersistTaps="handled"
-                        >
-                            {/* Loading Indicator - NEW */}
-                            {loadingMessages && (
-                                <View className="flex-1 justify-center items-center p-10">
-                                    <ActivityIndicator size="large" color="#2563eb" />
-                                    <Text className="text-gray-400 mt-2">Loading messages...</Text>
-                                </View>
-                            )}
+                        {/* Call Screens */}
+                        {showCallScreen && activeCall && (
+                            <CallScreen
+                                callData={activeCall}
+                                onCallEnd={handleCallEnd}
+                                isIncoming={false}
+                            />
+                        )}
 
-                            {/* Empty State - NEW */}
-                            {!loadingMessages && messages.length === 0 && (
-                                <View className="flex-1 justify-center items-center p-10">
-                                    <Text className="text-gray-400 text-center">
-                                        No messages yet. Start the conversation!
-                                    </Text>
-                                </View>
-                            )}
+                        {incomingCall && (
+                            <IncomingCallScreen
+                                callData={incomingCall}
+                                onAccept={handleAcceptIncomingCall}
+                                onReject={handleRejectIncomingCall}
+                            />
+                        )}
 
-                            {/* Messages */}
-                            {!loadingMessages && messages.map((item, index) => {
-                                const isSelected = selectedMessages.includes(item._id);
-                                // console.log("item.conversationId",item.conversationId);
-                                
-                                return (
-                                    <MessageBubble
-                                        key={item._id || index}
-                                        item={item}
-                                        userId={userId}
-                                        isSelected={isSelected}
-                                        onLongPress={() => handleSelectMessage(item)}
-                                        onDeleteMessages={handleDeleteMessage}
-                                    />
-                                );
-                            })}
+                        {/* Messages Section (hidden during calls) */}
+                        {!showCallScreen && !incomingCall && (
+                            <>
+                                {/* Messages ScrollView */}
+                                <ScrollView
+                                    ref={scrollViewRef}
+                                    className="flex-1"
+                                    onContentSizeChange={handleContentSizeChange}
+                                    keyboardDismissMode="on-drag"
+                                    keyboardShouldPersistTaps="handled"
+                                >
+                                    {loadingMessages && (
+                                        <View className="flex-1 justify-center items-center p-10">
+                                            <ActivityIndicator size="large" color="#2563eb" />
+                                            <Text className="text-gray-400 mt-2">Loading messages...</Text>
+                                        </View>
+                                    )}
 
-                            {/* Typing Indicator */}
-                            {isTyping && (
-                                <View className="flex-row items-center p-2">
-                                    <View className="bg-gray-700 rounded-full p-3">
-                                        <Text className="text-white">Typing...</Text>
-                                    </View>
-                                </View>
-                            )}
-                        </ScrollView>
+                                    {!loadingMessages && messages.length === 0 && (
+                                        <View className="flex-1 justify-center items-center p-10">
+                                            <Text className="text-gray-400 text-center">
+                                                No messages yet. Start the conversation!
+                                            </Text>
+                                        </View>
+                                    )}
 
-                        {/* Message Input */}
-                        <MessageInput
-                            message={message}
-                            keyboardHeight={keyboardHeight}
-                            connectionStatus={connectionStatus}
-                            uploadingMedia={uploadingMedia}
-                            isRecording={isRecording}
-                            onTextChange={handleTextChange}
-                            onSend={() => handleSend("text")}
-                            onShowImagePicker={handleShowImagePicker}
-                            onStartRecording={handleStartRecording}
-                            onStopRecording={handleStopRecording}
-                        />
+                                    {!loadingMessages && messages.map((item, index) => {
+                                        const isSelected = selectedMessages.includes(item._id);
+                                        return (
+                                            <MessageBubble
+                                                key={item._id || index}
+                                                item={item}
+                                                userId={userId}
+                                                isSelected={isSelected}
+                                                onLongPress={() => handleSelectMessage(item)}
+                                                onDeleteMessages={handleDeleteMessage}
+                                            />
+                                        );
+                                    })}
+
+                                    {isTyping && (
+                                        <View className="flex-row items-center p-2">
+                                            <View className="bg-gray-700 rounded-full p-3">
+                                                <Text className="text-white">Typing...</Text>
+                                            </View>
+                                        </View>
+                                    )}
+                                </ScrollView>
+
+                                {/* Message Input */}
+                                <MessageInput
+                                    message={message}
+                                    keyboardHeight={keyboardHeight}
+                                    connectionStatus={connectionStatus}
+                                    uploadingMedia={uploadingMedia}
+                                    isRecording={isRecording}
+                                    onTextChange={handleTextChange}
+                                    onSend={() => handleSend("text")}
+                                    onShowImagePicker={handleShowImagePicker}
+                                    onStartRecording={handleStartRecording}
+                                    onStopRecording={handleStopRecording}
+                                />
+                            </>
+                        )}
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>

@@ -12,6 +12,8 @@ import ChatMessagesScreen from './screens/ChatMessagesScreen';
 
 const Stack = createNativeStackNavigator();
 const Stacknavigator = () => {
+
+
     return (
         <NavigationContainer>
             <Stack.Navigator>
@@ -72,6 +74,8 @@ const Stacknavigator = () => {
                         },
                     }}
                 />
+        
+              
             </Stack.Navigator>
         </NavigationContainer>
     )
