@@ -1,24 +1,54 @@
+// Add this to your Stacknavigator.tsx
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
+import { ScrollView, RefreshControl } from 'react-native';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import FriendsScreen from './screens/FriendsScreen';
 import ChatsScreen from './screens/ChatsScreen';
+import * as Updates from 'expo-updates';
 import ChatMessagesScreen from './screens/ChatMessagesScreen';
 
 const NAVIGATION_STATE_KEY = '@navigation_state';
 
 const Stack = createNativeStackNavigator();
 
+// Wrapper component that adds pull-to-refresh to any screen
+const RefreshableScreen = ({ component: Component, ...props }: any) => {
+    const [refreshing, setRefreshing] = React.useState(false);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        // Trigger re-render of the screen, which will refetch data
+        setTimeout(() => setRefreshing(false), 1000);
+        await Updates.reloadAsync();
+    };
+
+    return (
+        <ScrollView
+            contentContainerStyle={{ flexGrow: 1 }}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="#2563eb"
+                    colors={['#2563eb']}
+                />
+            }
+        >
+            <Component {...props} />
+        </ScrollView>
+    );
+};
+
 const Stacknavigator = () => {
     const [isReady, setIsReady] = useState(false);
     const [initialState, setInitialState] = useState();
 
-    // Restore navigation state on mount
     useEffect(() => {
         const restoreState = async () => {
             try {
@@ -38,7 +68,6 @@ const Stacknavigator = () => {
         restoreState();
     }, []);
 
-    // Show nothing while loading (or return your splash screen here)
     if (!isReady) {
         return null;
     }
@@ -47,7 +76,6 @@ const Stacknavigator = () => {
         <NavigationContainer
             initialState={initialState}
             onStateChange={(state) => {
-                // Save navigation state whenever it changes
                 AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state));
             }}
         >
@@ -64,7 +92,6 @@ const Stacknavigator = () => {
                 />
                 <Stack.Screen
                     name="Home"
-                    component={HomeScreen}
                     options={{
                         headerShown: true,
                         headerStyle: {
@@ -75,10 +102,11 @@ const Stacknavigator = () => {
                             color: '#ffffff',
                         },
                     }}
-                />
+                >
+                    {(props) => <RefreshableScreen {...props} component={HomeScreen} />}
+                </Stack.Screen>
                 <Stack.Screen
                     name="Friends"
-                    component={FriendsScreen}
                     options={{
                         headerShown: true,
                         headerStyle: {
@@ -89,10 +117,11 @@ const Stacknavigator = () => {
                             color: '#ffffff',
                         },
                     }}
-                />
+                >
+                    {(props) => <RefreshableScreen {...props} component={FriendsScreen} />}
+                </Stack.Screen>
                 <Stack.Screen
                     name="Chats"
-                    component={ChatsScreen}
                     options={{
                         headerShown: true,
                         headerStyle: {
@@ -103,10 +132,11 @@ const Stacknavigator = () => {
                             color: '#ffffff',
                         },
                     }}
-                />
+                >
+                    {(props) => <RefreshableScreen {...props} component={ChatsScreen} />}
+                </Stack.Screen>
                 <Stack.Screen
                     name="Messages"
-                    component={ChatMessagesScreen}
                     options={{
                         headerShown: true,
                         headerStyle: {
@@ -117,7 +147,9 @@ const Stacknavigator = () => {
                             color: '#ffffff',
                         },
                     }}
-                />
+                >
+                    {(props) => <RefreshableScreen {...props} component={ChatMessagesScreen} />}
+                </Stack.Screen>
             </Stack.Navigator>
         </NavigationContainer>
     );
