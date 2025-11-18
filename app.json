@@ -21,7 +21,8 @@
           "cameraPermission": "The app accesses your camera to let you take photos.",
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "scheme": "giggachat",
     "ios": {
