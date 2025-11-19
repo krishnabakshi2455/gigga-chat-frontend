@@ -10,9 +10,11 @@
       "distribution": "internal"
     },
     "preview": {
+      "node": "22.11.0",
       "distribution": "internal"
     },
     "production": {
+      "node": "22.11.0",
       "autoIncrement": true,
       "distribution": "store",
       "android": {
