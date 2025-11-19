@@ -40,7 +40,7 @@ yarn-error.*
 .hintrc
 .env
 config.ts
-
+# yarn.lock
 
 rm -rf node_modules yarn.lock .yarn/cache
 Remove-Item -Recurse -Force node_modules, yarn.lock, .yarn\cache
