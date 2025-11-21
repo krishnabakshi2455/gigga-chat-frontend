@@ -3,12 +3,10 @@ workflows:
     name: Build Expo Android APK
     max_build_duration: 60
     environment:
-      vars:
-        EXPO_TOKEN: $EXPO_TOKEN
       node: 18
     scripts:
       - name: Install dependencies
-        script: yarn install --frozen-lockfile
+        script: yarn install --immutable
 
       - name: Install Expo CLI
         script: yarn global add expo-cli
