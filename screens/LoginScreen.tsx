@@ -9,19 +9,14 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { useAtom } from "jotai";
 import { userTokenAtom } from "../src/lib/store/userId.store";
-import { BACKEND_URL, GOOGLE_Web_Client_ID } from "@env";
 import LoadingScreen from "../components/loader";
+import { checkBackendConnection, checkStoredToken, configureGoogleSignIn, handleEmailPasswordLogin, handleGoogleSignIn, validateLoginForm } from "../src/services/Login.SignUp";
 
-// Configure Google Sign-In with correct Web Client ID
-GoogleSignin.configure({
-    webClientId: GOOGLE_Web_Client_ID,
-    offlineAccess: true,
-});
+
+// Configure Google Sign-In on module load
+configureGoogleSignIn();
 
 const LoginScreen = () => {
     const [email, setEmail] = useState("");
@@ -36,40 +31,11 @@ const LoginScreen = () => {
     });
     const navigation = useNavigation<any>();
 
-    // Function to check backend connectivity
-    const checkBackendConnection = async (): Promise<boolean> => {
-        try {
-            console.log('🔌 Checking backend connection:', BACKEND_URL);
-            const response = await axios.get(`${BACKEND_URL}/health`, {
-                timeout: 5000,
-            });
-            console.log('✅ Backend connected:', response.status === 200);
-            setBackendConnected(true);
-            return true;
-        } catch (error) {
-            console.log('❌ Backend connection failed:', error);
-            setBackendConnected(false);
-            return false;
-        }
-    };
-
-    // Function to check if token is expired
-    const isTokenExpired = (token: string): boolean => {
-        try {
-            const parts = token.split('.');
-            if (parts.length !== 3) return true;
-
-            const payload = JSON.parse(atob(parts[1]));
-
-            if (!payload.exp) return true;
-
-            const currentTime = Math.floor(Date.now() / 1000);
-            return payload.exp < currentTime;
-
-        } catch (error) {
-            console.log("Error checking token expiration:", error);
-            return true;
-        }
+    // Check backend connection
+    const checkConnection = async (): Promise<boolean> => {
+        const isConnected = await checkBackendConnection();
+        setBackendConnected(isConnected);
+        return isConnected;
     };
 
     useEffect(() => {
@@ -77,51 +43,16 @@ const LoginScreen = () => {
             try {
                 setInitialLoading(true);
 
-                // Log environment variables for debugging
                 console.log('🔧 Configuration:');
-                // console.log('BACKEND_URL:', BACKEND_URL);
-                // console.log('GOOGLE_Web_Client_ID:', GOOGLE_Web_Client_ID);
 
-                // Check backend connectivity silently (don't show alert)
-                await checkBackendConnection();
+                // Check backend connectivity silently
+                await checkConnection();
 
-                const token = await AsyncStorage.getItem("authToken");
-                console.log('🔐 Token found:', !!token);
-
-                if (token) {
-                    try {
-                        const parts = token.split('.');
-                        if (parts.length === 3) {
-                            const payload = JSON.parse(atob(parts[1]));
-                            const currentTime = Math.floor(Date.now() / 1000);
-
-                            console.log('⏰ Token expires:', new Date(payload.exp * 1000));
-                            console.log('⏰ Current time:', new Date(currentTime * 1000));
-                            console.log('📅 Expired?', payload.exp < currentTime);
-
-                            if (payload.exp < currentTime) {
-                                console.log('🗑️ Removing expired token');
-                                await AsyncStorage.removeItem("authToken");
-                                setusertokenatom("");
-                            } else {
-                                console.log('✅ Token valid, navigating to Home');
-                                setusertokenatom(token);
-                                navigation.replace("Home");
-                                return;
-                            }
-                        }
-                    } catch (error) {
-                        console.log('❌ Invalid token format, removing');
-                        await AsyncStorage.removeItem("authToken");
-                    }
-                }
-
-                setusertokenatom("");
+                // Check if user has valid token
+                await checkStoredToken(setusertokenatom, navigation.replace);
 
             } catch (error) {
                 console.log("Error during initialization:", error);
-                await AsyncStorage.removeItem("authToken");
-                setusertokenatom("");
             } finally {
                 setInitialLoading(false);
             }
@@ -129,40 +60,6 @@ const LoginScreen = () => {
 
         initialize();
     }, []);
-
-    // Email validation function
-    const isValidEmail = (email: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    };
-
-    // Form validation function
-    const validateForm = () => {
-        let tempErrors = {
-            email: "",
-            password: "",
-        };
-        let isValid = true;
-
-        if (!email.trim()) {
-            tempErrors.email = "Email is required";
-            isValid = false;
-        } else if (!isValidEmail(email)) {
-            tempErrors.email = "Please enter a valid email address";
-            isValid = false;
-        }
-
-        if (!password.trim()) {
-            tempErrors.password = "Password is required";
-            isValid = false;
-        } else if (password.length < 6) {
-            tempErrors.password = "Password must be at least 6 characters";
-            isValid = false;
-        }
-
-        setErrors(tempErrors);
-        return isValid;
-    };
 
     const handleEmailChange = (text: string) => {
         setEmail(text);
@@ -179,138 +76,59 @@ const LoginScreen = () => {
     };
 
     const handleLogin = async () => {
-        if (!validateForm()) {
+        // Validate form
+        const { errors: validationErrors, isValid } = validateLoginForm(email, password);
+
+        if (!isValid) {
+            setErrors(validationErrors);
             return;
         }
 
-        // Check backend connection before attempting login (only show alert on user action)
+        // Check backend connection before attempting login
         if (!backendConnected) {
-            const isConnected = await checkBackendConnection();
+            const isConnected = await checkConnection();
             if (!isConnected) {
                 Alert.alert('Connection Error', 'Cannot connect to server. Please check your connection and try again.');
                 return;
             }
         }
 
-        const user = {
-            email: email,
-            password: password,
-        };
+        // Attempt login
+        const result = await handleEmailPasswordLogin(
+            email,
+            password,
+            setusertokenatom,
+            navigation.replace
+        );
 
-        axios
-            .post(`${BACKEND_URL}/login`, user)
-            .then(async (response) => {
-                const token = response.data.token;
-                await AsyncStorage.setItem("authToken", token);
-                setusertokenatom(token);
-                navigation.replace("Home");
-            })
-            .catch((error) => {
-                console.log("Login error:", error);
-                Alert.alert("Login Error", "Invalid email or password");
-            });
+        if (!result.success) {
+            Alert.alert("Login Error", result.error || "An error occurred");
+        }
     };
 
-    const handleGoogleSignIn = async () => {
-        try {
-            setGoogleLoading(true);
-            console.log('🚀 Starting Google Sign-In...');
+    const handleGoogleSignInPress = async () => {
+        setGoogleLoading(true);
 
-            // Check backend connection (only show alert on user action)
-            if (!backendConnected) {
-                const isConnected = await checkBackendConnection();
-                if (!isConnected) {
-                    Alert.alert('Connection Error', 'Cannot connect to server. Please check your connection and try again.');
-                    setGoogleLoading(false);
-                    return;
-                }
-            }
-
-            // Verify Google configuration
-            // console.log('🔑 Google Web Client ID:', GOOGLE_Web_Client_ID);
-            if (!GOOGLE_Web_Client_ID || GOOGLE_Web_Client_ID.includes('http')) {
-                Alert.alert(
-                    'Configuration Error',
-                    'Google Sign-In is not properly configured. Please check your environment variables.'
-                );
+        // Check backend connection
+        if (!backendConnected) {
+            const isConnected = await checkConnection();
+            if (!isConnected) {
+                Alert.alert('Connection Error', 'Cannot connect to server. Please check your connection and try again.');
                 setGoogleLoading(false);
                 return;
             }
-
-            // Sign out first to clear any cached credentials
-            try {
-                await GoogleSignin.signOut();
-                console.log('🔓 Signed out from previous session');
-            } catch (signOutError) {
-                console.log('Sign out error (can be ignored):', signOutError);
-            }
-
-            // Check if Google Play Services are available
-            console.log('🎮 Checking Google Play Services...');
-            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
-            // Sign in with Google
-            console.log('📝 Signing in with Google...');
-            const userInfo = await GoogleSignin.signIn();
-
-            console.log('✅ Google sign-in successful');
-            console.log('User data:', {
-                hasName: !!userInfo.data?.user?.name,
-                hasEmail: !!userInfo.data?.user?.email,
-                hasPhoto: !!userInfo.data?.user?.photo
-            });
-
-            const googleUser = {
-                name: userInfo.data?.user?.name || "",
-                email: userInfo.data?.user?.email || "",
-                image: userInfo.data?.user?.photo || "",
-            };
-
-            // Validate that we have required data
-            if (!googleUser.email) {
-                throw new Error('No email received from Google');
-            }
-
-            // console.log('📤 Sending to backend:', `${BACKEND_URL}/googleauth`);
-
-            const response = await axios.post(`${BACKEND_URL}/googleauth`, googleUser, {
-                timeout: 10000,
-            });
-
-            console.log('✅ Backend response received');
-            const token = response.data.token;
-
-            await AsyncStorage.setItem("authToken", token);
-            setusertokenatom(token);
-
-            console.log('🏠 Navigating to Home');
-            navigation.replace("Home");
-
-        } catch (error: any) {
-            console.error('❌ Google Sign-In error:', error);
-            console.error('Error code:', error.code);
-            console.error('Error message:', error.message);
-
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                // Don't show alert for user cancellation
-                console.log('User cancelled sign-in');
-            } else if (error.code === statusCodes.IN_PROGRESS) {
-                console.log('Sign-In already in progress');
-            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                Alert.alert('Error', 'Google Play Services not available or outdated');
-            } else if (error.response) {
-                // Backend error
-                console.error('Backend error:', error.response.data);
-                Alert.alert('Authentication Error', 'Failed to authenticate with server. Please try again.');
-            } else if (error.request) {
-                // Network error
-                Alert.alert('Network Error', 'Cannot reach the server. Please check your connection.');
-            } else {
-                Alert.alert('Error', `Google Sign-In failed: ${error.message}`);
-            }
-        } finally {
-            setGoogleLoading(false);
         }
+
+        const result = await handleGoogleSignIn(setusertokenatom, navigation.replace);
+
+        if (!result.success) {
+            // Don't show alert for user cancellation
+            if (result.errorCode !== 'CANCELLED' && result.error) {
+                Alert.alert('Error', result.error);
+            }
+        }
+
+        setGoogleLoading(false);
     };
 
     // Show loading screen while checking token
@@ -323,7 +141,7 @@ const LoginScreen = () => {
             <KeyboardAvoidingView>
                 {/* Backend connection indicator */}
                 <Pressable
-                    onPress={checkBackendConnection}
+                    onPress={checkConnection}
                     className="absolute top-2 right-2"
                 >
                     <View className="flex-row items-center bg-gray-800 px-3 py-1 rounded-full">
@@ -412,7 +230,7 @@ const LoginScreen = () => {
                     </View>
 
                     <Pressable
-                        onPress={handleGoogleSignIn}
+                        onPress={handleGoogleSignInPress}
                         disabled={googleLoading}
                         className="w-52 bg-white mx-auto p-4 rounded-md flex-row justify-center items-center"
                     >

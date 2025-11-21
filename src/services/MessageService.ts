@@ -38,7 +38,7 @@ export class MessageService {
         skip: number = 0
     ): Promise<ExtendedMessage[]> {
         try {
-            console.log('📥 Fetching messages between:', userId, 'and', recipientId);
+            // console.log('📥 Fetching messages between:', userId, 'and', recipientId);
 
             const response = await this.makeApiCall(
                 `/api/messages/${userId}/${recipientId}?limit=${limit}&skip=${skip}`,
@@ -229,11 +229,11 @@ export class MessageService {
 
             // Send via socket first
             if (messageType === "text") {
-                sent = socketService.sendMessage(_id, actualContent, "text");
+                sent = await socketService.sendMessage(_id, actualContent, "text");
             } else if (messageType === "image" && content) {
-                sent = socketService.sendImageMessage(_id, actualContent);
+                sent = await socketService.sendImageMessage(_id, actualContent);
             } else if (messageType === "audio" && content) {
-                sent = socketService.sendAudioMessage(_id, actualContent);
+                sent = await socketService.sendAudioMessage(_id, actualContent);
             }
 
             if (!sent) {

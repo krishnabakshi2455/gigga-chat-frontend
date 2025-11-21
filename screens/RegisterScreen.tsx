@@ -10,10 +10,18 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { BACKEND_URL } from "@env";
+import { useAtom } from "jotai";
+import { userTokenAtom } from "../src/lib/store/userId.store";
+import {
+  configureGoogleSignIn,
+  validateRegisterForm,
+  handleUserRegistration,
+  handleGoogleSignIn,
+  checkStoredToken,
+} from "../src/services/Login.SignUp";
+
+// Configure Google Sign-In on module load
+configureGoogleSignIn();
 
 const RegisterScreen = () => {
   const [email, setEmail] = useState("");
@@ -21,58 +29,13 @@ const RegisterScreen = () => {
   const [password, setPassword] = useState("");
   const [image, setImage] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [usertokenatom, setusertokenatom] = useAtom(userTokenAtom);
   const [errors, setErrors] = useState({
     name: "",
     email: "",
     password: "",
   });
   const navigation = useNavigation<any>();
-
-  // Email validation function
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // Form validation function
-  const validateForm = () => {
-    let tempErrors = {
-      name: "",
-      email: "",
-      password: "",
-    };
-    let isValid = true;
-
-    // Name validation
-    if (!name.trim()) {
-      tempErrors.name = "Name is required";
-      isValid = false;
-    } else if (name.trim().length < 2) {
-      tempErrors.name = "Name must be at least 2 characters";
-      isValid = false;
-    }
-
-    // Email validation
-    if (!email.trim()) {
-      tempErrors.email = "Email is required";
-      isValid = false;
-    } else if (!isValidEmail(email)) {
-      tempErrors.email = "Please enter a valid email address";
-      isValid = false;
-    }
-
-    // Password validation
-    if (!password.trim()) {
-      tempErrors.password = "Password is required";
-      isValid = false;
-    } else if (password.length < 6) {
-      tempErrors.password = "Password must be at least 6 characters";
-      isValid = false;
-    }
-
-    setErrors(tempErrors);
-    return isValid;
-  };
 
   // Clear error when user starts typing
   const handleNameChange = (text: string) => {
@@ -96,104 +59,59 @@ const RegisterScreen = () => {
     }
   };
 
-  const handleRegister = () => {
-    if (!validateForm()) {
+  const handleRegister = async () => {
+    // Validate form
+    const { errors: validationErrors, isValid } = validateRegisterForm(name, email, password);
+
+    if (!isValid) {
+      setErrors(validationErrors);
       return;
     }
 
-    const user = {
-      name: name,
-      email: email,
-      password: password,
-      image: image,
-    };
+    // Attempt registration
+    const result = await handleUserRegistration(name, email, password, image);
 
-    axios
-      .post(`${BACKEND_URL}/register`, user)
-      .then((response) => {
-        console.log(response);
-        Alert.alert(
-          "Registration successful",
-          "You have been registered Successfully"
-        );
-        setName("");
-        setEmail("");
-        setPassword("");
-        setImage("");
-        // Clear errors after successful registration
-        setErrors({
-          name: "",
-          email: "",
-          password: "",
-        });
-      })
-      .catch((error) => {
-        Alert.alert(
-          "Registration Error",
-          "An error occurred while registering"
-        );
-        console.log("registration failed", error);
+    if (result.success) {
+      Alert.alert(
+        "Registration successful",
+        "You have been registered Successfully"
+      );
+      // Clear form
+      setName("");
+      setEmail("");
+      setPassword("");
+      setImage("");
+      setErrors({
+        name: "",
+        email: "",
+        password: "",
       });
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setGoogleLoading(true);
-
-      // Check if Google Play Services are available
-      await GoogleSignin.hasPlayServices();
-
-      // Sign in with Google
-      const userInfo = await GoogleSignin.signIn();
-
-      // Log the structure to debug (remove this after testing)
-      // console.log('Google userInfo structure:', JSON.stringify(userInfo, null, 2));
-
-      // Send to your existing backend - matches your /googleauth endpoint
-      const googleUser = {
-        name: userInfo.data?.user?.name,
-        email: userInfo.data?.user?.email,
-        image: userInfo.data?.user?.photo || "",
-      };
-
-      // Call your existing backend endpoint
-      const response = await axios.post(`${BACKEND_URL}/googleauth`, googleUser);
-
-      const token = response.data.token;
-      await AsyncStorage.setItem("authToken", token);
-
-      navigation.replace("Home");
-
-    } catch (error: any) {
-      setGoogleLoading(false);
-
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        console.log('Google Sign-In cancelled');
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        console.log('Google Sign-In in progress');
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Error', 'Google Play Services not available');
-      } else {
-        console.error('Google Sign-In error:', error);
-        Alert.alert('Google Sign-In Error', 'Failed to sign in with Google');
-      }
-    } finally {
-      setGoogleLoading(false);
+    } else {
+      Alert.alert(
+        "Registration Error",
+        result.error || "An error occurred while registering"
+      );
     }
   };
 
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      try {
-        const token = await AsyncStorage.getItem("authToken");
-        if (token) {
-          navigation.replace("Home");
-        }
-      } catch (error) {
-        // console.log("error", error);
+  const handleGoogleSignInPress = async () => {
+    setGoogleLoading(true);
+
+    const result = await handleGoogleSignIn(setusertokenatom, navigation.replace);
+
+    if (!result.success) {
+      // Don't show alert for user cancellation
+      if (result.errorCode !== 'CANCELLED' && result.error) {
+        Alert.alert('Error', result.error);
       }
-    };
-    checkLoginStatus();
+    }
+
+    setGoogleLoading(false);
+  };
+
+  useEffect(() => {
+    // Check if user is already logged in
+    checkStoredToken(setusertokenatom, navigation.replace);
   }, []);
 
   return (
@@ -294,9 +212,8 @@ const RegisterScreen = () => {
             <Text className="text-gray-600 font-bold text-lg">Or</Text>
           </View>
 
-          {/* Simple Google Sign-In Button - Just like the article */}
           <Pressable
-            onPress={handleGoogleSignIn}
+            onPress={handleGoogleSignInPress}
             disabled={googleLoading}
             className="w-52 bg-white mx-auto p-4 rounded-md flex-row justify-center items-center"
           >

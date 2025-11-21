@@ -12,6 +12,9 @@ import FriendsScreen from './screens/FriendsScreen';
 import ChatsScreen from './screens/ChatsScreen';
 import * as Updates from 'expo-updates';
 import ChatMessagesScreen from './screens/ChatMessagesScreen';
+import { useAtom } from 'jotai';
+import { userTokenAtom } from './src/lib/store/userId.store';
+import { isTokenExpired } from './src/services/Login.SignUp';
 
 const NAVIGATION_STATE_KEY = '@navigation_state';
 
@@ -24,8 +27,10 @@ const RefreshableScreen = ({ component: Component, ...props }: any) => {
     const onRefresh = async () => {
         setRefreshing(true);
         // Trigger re-render of the screen, which will refetch data
-        setTimeout(() => setRefreshing(false), 1000);
-        await Updates.reloadAsync();
+        setTimeout(() => {
+            setRefreshing(false)
+            Updates.reloadAsync();
+        }, 1500);
     };
 
     return (
@@ -48,25 +53,80 @@ const RefreshableScreen = ({ component: Component, ...props }: any) => {
 const Stacknavigator = () => {
     const [isReady, setIsReady] = useState(false);
     const [initialState, setInitialState] = useState();
+    const [usertokenatom, setusertokenatom] = useAtom(userTokenAtom);
+    const navigationRef = React.useRef<any>(null);
+
+    // Check token expiration periodically
+    useEffect(() => {
+        const checkTokenExpiration = async () => {
+            try {
+                const token = await AsyncStorage.getItem("authToken");
+
+                if (token && isTokenExpired(token)) {
+                    console.log('🗑️ Token expired, logging out...');
+
+                    // Clear auth data
+                    await AsyncStorage.removeItem("authToken");
+                    await AsyncStorage.removeItem(NAVIGATION_STATE_KEY);
+                    setusertokenatom("");
+
+                    // Navigate to Login and reset stack
+                    if (navigationRef.current) {
+                        navigationRef.current.reset({
+                            index: 0,
+                            routes: [{ name: 'Login' }],
+                        });
+                    }
+                }
+            } catch (error) {
+                console.log('Error checking token:', error);
+            }
+        };
+
+        // Check immediately
+        checkTokenExpiration();
+
+        // Check every 60 seconds
+        const interval = setInterval(checkTokenExpiration, 60000);
+
+        return () => clearInterval(interval);
+    }, [setusertokenatom]);
 
     useEffect(() => {
         const restoreState = async () => {
             try {
-                const savedStateString = await AsyncStorage.getItem(NAVIGATION_STATE_KEY);
-                const state = savedStateString ? JSON.parse(savedStateString) : undefined;
+                const token = await AsyncStorage.getItem("authToken");
 
-                if (state !== undefined) {
-                    setInitialState(state);
+                // Check if token exists and is valid
+                if (token && !isTokenExpired(token)) {
+                    // Token is valid, restore navigation state
+                    const savedStateString = await AsyncStorage.getItem(NAVIGATION_STATE_KEY);
+                    const state = savedStateString ? JSON.parse(savedStateString) : undefined;
+
+                    if (state !== undefined) {
+                        setInitialState(state);
+                    }
+                } else {
+                    // Token is expired or doesn't exist, clear everything
+                    console.log('🗑️ Token invalid or expired on app start');
+                    await AsyncStorage.removeItem("authToken");
+                    await AsyncStorage.removeItem(NAVIGATION_STATE_KEY);
+                    setusertokenatom("");
+                    // Don't set initial state, will default to Login screen
                 }
             } catch (e) {
                 console.log('Failed to restore navigation state:', e);
+                // On error, clear everything to be safe
+                await AsyncStorage.removeItem("authToken");
+                await AsyncStorage.removeItem(NAVIGATION_STATE_KEY);
+                setusertokenatom("");
             } finally {
                 setIsReady(true);
             }
         };
 
         restoreState();
-    }, []);
+    }, [setusertokenatom]);
 
     if (!isReady) {
         return null;
@@ -74,9 +134,15 @@ const Stacknavigator = () => {
 
     return (
         <NavigationContainer
+            ref={navigationRef}
             initialState={initialState}
             onStateChange={(state) => {
-                AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state));
+                // Only save navigation state if user is authenticated
+                AsyncStorage.getItem("authToken").then(token => {
+                    if (token && !isTokenExpired(token)) {
+                        AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state));
+                    }
+                });
             }}
         >
             <Stack.Navigator>
