@@ -3,7 +3,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Alert } from "react-native";
-import { BACKEND_URL, GOOGLE_Web_Client_ID } from "@env";
+import { Auth_Token, BACKEND_URL, GOOGLE_Web_Client_ID } from "@env";
 
 // Configure Google Sign-In
 export const configureGoogleSignIn = () => {
@@ -125,7 +125,7 @@ export const checkStoredToken = async (
     navigationReplace: (screen: string) => void
 ): Promise<boolean> => {
     try {
-        const token = await AsyncStorage.getItem("authToken");
+        const token = await AsyncStorage.getItem(Auth_Token);
         console.log('🔐 Token found:', !!token);
 
         if (token) {
@@ -141,7 +141,7 @@ export const checkStoredToken = async (
 
                     if (payload.exp < currentTime) {
                         console.log('🗑️ Removing expired token');
-                        await AsyncStorage.removeItem("authToken");
+                        await AsyncStorage.removeItem(Auth_Token);
                         setusertokenatom("");
                         return false;
                     } else {
@@ -153,7 +153,7 @@ export const checkStoredToken = async (
                 }
             } catch (error) {
                 console.log('❌ Invalid token format, removing');
-                await AsyncStorage.removeItem("authToken");
+                await AsyncStorage.removeItem(Auth_Token);
                 setusertokenatom("");
                 return false;
             }
@@ -164,7 +164,7 @@ export const checkStoredToken = async (
 
     } catch (error) {
         console.log("Error during token check:", error);
-        await AsyncStorage.removeItem("authToken");
+        await AsyncStorage.removeItem(Auth_Token);
         setusertokenatom("");
         return false;
     }
@@ -186,7 +186,7 @@ export const handleEmailPasswordLogin = async (
         const response = await axios.post(`${BACKEND_URL}/login`, user);
         const token = response.data.token;
 
-        await AsyncStorage.setItem("authToken", token);
+        await AsyncStorage.setItem(Auth_Token, token);
         setusertokenatom(token);
         navigationReplace("Home");
 
@@ -280,7 +280,7 @@ export const handleGoogleSignIn = async (
         console.log('✅ Backend response received');
         const token = response.data.token;
 
-        await AsyncStorage.setItem("authToken", token);
+        await AsyncStorage.setItem(Auth_Token, token);
         setusertokenatom(token);
 
         console.log('🏠 Navigating to Home');
@@ -315,7 +315,7 @@ export const handleGoogleSignIn = async (
 // Clear all auth data (for logout)
 export const clearAuthData = async (setusertokenatom: (token: string) => void): Promise<void> => {
     try {
-        await AsyncStorage.removeItem("authToken");
+        await AsyncStorage.removeItem(Auth_Token);
         setusertokenatom("");
         console.log('🗑️ Auth data cleared');
     } catch (error) {

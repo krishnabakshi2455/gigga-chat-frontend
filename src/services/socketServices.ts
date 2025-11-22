@@ -21,81 +21,86 @@ class SocketService {
 
     connect(token: string, userId: string): Promise<boolean> {
         if (this.connectionPromise) {
+            console.log('🔄 Returning existing connection promise');
             return this.connectionPromise;
         }
 
         this.connectionPromise = new Promise((resolve) => {
-            console.log('🔄 Attempting to connect to:', BACKEND_URL);
-            console.log('🔑 User ID:', userId);
+            console.log('🔄 Starting new socket connection...');
+            console.log('🔗 Backend URL:', BACKEND_URL ? 'Present' : 'Missing');
+            console.log('🔑 Token present:', !!token);
+            console.log('👤 User ID:', userId);
 
-            if (this.socket?.connected) {
-                console.log('✅ Socket already connected');
-                resolve(true);
-                return;
-            }
-
+            // Validate critical parameters
             if (!BACKEND_URL) {
-                console.error('❌ BACKEND_URL is not defined!');
+                console.error('❌ CRITICAL: BACKEND_URL is undefined!');
                 resolve(false);
+                this.connectionPromise = null;
                 return;
             }
 
             if (!token) {
-                console.error('❌ No authentication token provided!');
+                console.error('❌ CRITICAL: No authentication token!');
                 resolve(false);
+                this.connectionPromise = null;
                 return;
             }
 
+            if (!userId) {
+                console.error('❌ CRITICAL: No user ID!');
+                resolve(false);
+                this.connectionPromise = null;
+                return;
+            }
+
+            // Clean up existing socket
             if (this.socket) {
+                console.log('🧹 Cleaning up existing socket...');
                 this.socket.removeAllListeners();
                 this.socket.disconnect();
                 this.socket = null;
             }
 
             try {
+                console.log('🔌 Creating new socket instance...');
                 this.socket = io(BACKEND_URL, {
                     auth: {
                         token: token,
                         userId: userId
                     },
                     transports: ['websocket', 'polling'],
-                    timeout: 30000,
+                    timeout: 10000, // Reduced timeout for faster feedback
                     reconnection: true,
-                    reconnectionAttempts: this.maxReconnectAttempts,
+                    reconnectionAttempts: 3,
                     reconnectionDelay: 1000,
-                    reconnectionDelayMax: 5000,
-                    forceNew: false,
+                    reconnectionDelayMax: 3000,
+                    forceNew: true, // Force new connection
                 });
 
+                // Connection established
                 this.socket.on('connect', () => {
-                    console.log('✅ Socket connected successfully! ID:', this.socket?.id);
+                    // console.log('✅ Socket connected! ID:', this.socket?.id);
+                    // console.log('🔗 Connected to:', BACKEND_URL);
                     this.isConnected = true;
                     this.reconnectAttempts = 0;
                     resolve(true);
+                    this.connectionPromise = null;
                 });
 
-                this.socket.on('connected', (data) => {
-                    console.log('✅ Server connection confirmed:', data);
-                });
+                // Server confirmation
+                // this.socket.on('connected', (data) => {
+                //     console.log('✅ Server connection confirmed:', data);
+                // });
 
-                this.socket.on('test_event', (data) => {
-                    console.log('✅ Test event received:', data);
-                });
+                // Test event
+                // this.socket.on('test_event', (data) => {
+                //     console.log('✅ Test event received:', data);
+                // });
 
-                this.socket.on('disconnect', (reason) => {
-                    console.log('❌ Disconnected from server. Reason:', reason);
-                    this.isConnected = false;
-
-                    if (reason === 'io server disconnect') {
-                        console.log('🔄 Server initiated disconnect - will reconnect');
-                        setTimeout(() => {
-                            this.socket?.connect();
-                        }, 1000);
-                    }
-                });
-
+                // Connection error
                 this.socket.on('connect_error', (error) => {
-                    console.error('❌ Connection error:', error.message);
+                    console.error('❌ Connection failed:', error.message);
+                    console.error('❌ Error details:', error);
                     this.isConnected = false;
                     this.reconnectAttempts++;
 
@@ -106,8 +111,22 @@ class SocketService {
                     }
                 });
 
+                // Disconnection
+                this.socket.on('disconnect', (reason) => {
+                    console.log('🔌 Disconnected. Reason:', reason);
+                    this.isConnected = false;
+
+                    if (reason === 'io server disconnect') {
+                        console.log('🔄 Server initiated disconnect');
+                        setTimeout(() => {
+                            this.socket?.connect();
+                        }, 1000);
+                    }
+                });
+
+                // Reconnection events
                 this.socket.on('reconnect_attempt', (attempt) => {
-                    console.log(`🔄 Reconnection attempt ${attempt}`);
+                    console.log(`🔄 Reconnection attempt ${attempt}/${this.maxReconnectAttempts}`);
                 });
 
                 this.socket.on('reconnect_failed', () => {
@@ -115,16 +134,17 @@ class SocketService {
                     this.connectionPromise = null;
                 });
 
+                // Connection timeout
                 setTimeout(() => {
-                    if (!this.isConnected) {
-                        console.error('❌ Connection timeout after 30 seconds');
+                    if (!this.isConnected && this.connectionPromise) {
+                        console.error('⏰ Connection timeout - server not responding');
                         resolve(false);
                         this.connectionPromise = null;
                     }
-                }, 30000);
+                }, 15000); // 15 second timeout
 
             } catch (error) {
-                console.error('❌ Exception during socket connection:', error);
+                console.error('💥 Exception during socket creation:', error);
                 resolve(false);
                 this.connectionPromise = null;
             }
@@ -406,6 +426,16 @@ class SocketService {
 
     getSocket(): Socket | null {
         return this.socket;
+    }
+
+    // Add this new method for detailed connection status
+    getDetailedConnectionStatus() {
+        return {
+            socketConnected: this.socket?.connected || false,
+            isConnected: this.isConnected,
+            socketId: this.socket?.id,
+            backendUrl: BACKEND_URL
+        };
     }
 }
 
