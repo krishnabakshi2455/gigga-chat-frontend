@@ -1,4 +1,4 @@
-name: Build Android APKs
+name: Android Build
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-android:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -25,24 +25,20 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Make Gradle executable
-        run: chmod +x android/gradlew
+      - name: Make Gradlew executable
+        run: cd android && chmod +x gradlew
 
-      # -----------------------------
-      # BUILD DEBUG (Development APK)
-      # -----------------------------
+      # -------- Debug Build --------
       - name: Build Debug APK
         run: cd android && ./gradlew assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: dev-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: development-apk
+          path: android/app/build/outputs/apk/debug/*.apk
 
-      # -----------------------------
-      # BUILD RELEASE (Production APK)
-      # -----------------------------
+      # -------- Release Build --------
       - name: Build Release APK
         run: cd android && ./gradlew assembleRelease
 
@@ -50,4 +46,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: production-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/*.apk
