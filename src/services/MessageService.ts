@@ -1,6 +1,6 @@
 import { Alert } from "react-native";
 import { socketService } from "../services/socketServices";
-import { BackendMessageData, ExtendedMessage } from "../lib/types";
+import { BackendMessageData, ExtendedMessage } from "../lib/types/types";
 import { BACKEND_URL } from "@env";
 
 export class MessageService {

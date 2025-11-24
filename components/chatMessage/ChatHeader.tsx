@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
 import { Ionicons, FontAwesome, MaterialIcons } from '@expo/vector-icons';
-import { RecipientData } from '../../src/lib/types';
+import { RecipientData } from '../../src/lib/types/types';
 
 interface ConnectionIndicatorProps {
     connectionStatus: 'connecting' | 'connected' | 'disconnected';

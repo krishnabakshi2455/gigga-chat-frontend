@@ -8,7 +8,7 @@ import {
     StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
-import { CallData } from '../../src/lib/types';
+import { CallData } from '../../src/lib/types/types';
 
 interface CallScreenProps {
     callData: CallData;

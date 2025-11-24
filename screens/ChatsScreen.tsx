@@ -5,7 +5,7 @@ import { userIdAtom } from "../src/lib/store/userId.store";
 import { useNavigation } from "@react-navigation/native";
 import UserChat from "../components/UserChat";
 import { userService } from "../src/services/userService";
-import { UserItem } from "../src/lib/types";
+import { UserItem } from "../src/lib/types/types";
 
 const ChatsScreen: React.FC = () => {
     const [acceptedFriends, setAcceptedFriends] = useState<UserItem[]>([]);

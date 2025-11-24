@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { ExtendedMessage } from '../lib/types';
+import { ExtendedMessage } from '../lib/types/types';
 
 class MessageDeletionService {
     private baseUrl: string;

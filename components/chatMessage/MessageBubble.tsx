@@ -4,7 +4,7 @@ import { View, Text, Image, Pressable, Modal, TouchableOpacity, Dimensions, Aler
 import { Ionicons } from "@expo/vector-icons";
 import { formatTime } from "../../src/lib/utils/timeUtils";
 import { playAudio } from "../../src/lib/utils/playaudio";
-import { ExtendedMessage } from "../../src/lib/types";
+import { ExtendedMessage } from "../../src/lib/types/types";
 import { messageDeletionService } from "../../src/services/DeleteMessage";
 
 interface MessageBubbleProps {

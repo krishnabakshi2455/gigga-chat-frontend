@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { startRecording, stopRecording } from "../src/lib/hooks/AudioRecorder";
 // import { messageDeletionService } from "../src/services/DeleteMessage";
 import { Auth_Token } from "@env";
-import { CallData, ExtendedMessage, RecipientData } from "../types";
+import { CallData, ExtendedMessage, RecipientData } from "../types/types";
 import { userIdAtom, userTokenAtom } from "../store/userId.store";
 import { messageService } from "../../services/MessageService";
 import { socketService } from "../../services/socketServices";

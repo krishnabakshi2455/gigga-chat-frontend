@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { CurrentCallData, IncomingCallData } from '../types';
+import { CurrentCallData, IncomingCallData } from '../types/types';
 
 
 

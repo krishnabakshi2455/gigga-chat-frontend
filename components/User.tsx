@@ -1,7 +1,7 @@
 import { Text, View, Pressable, Image } from "react-native";
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
-import { FriendRequest, UserProps } from "../src/lib/types";
+import { FriendRequest, UserProps } from "../src/lib/types/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { userService } from "../src/services/userService";
 

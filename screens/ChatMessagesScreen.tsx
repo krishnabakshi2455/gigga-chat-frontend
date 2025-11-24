@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { RecipientData } from "../src/lib/types";
+import { RecipientData } from "../src/lib/types/types";
 import { socketService } from "../src/services/socketServices";
 import { openCamera, pickImageFromLibrary, showImagePickerOptions } from "../src/lib/hooks/ImagePicker";
 import { ChatHeaderLeft, ChatHeaderRight } from "../components/chatMessage/ChatHeader";

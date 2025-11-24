@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useAtom } from 'jotai';
 import axios, { AxiosResponse } from "axios";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import { ApiResponse, FriendRequestItem } from "../src/lib/types";
+import { ApiResponse, FriendRequestItem } from "../src/lib/types/types";
 import { BACKEND_URL } from "@env";
 import FriendRequest from "../components/FriendRequest";
 

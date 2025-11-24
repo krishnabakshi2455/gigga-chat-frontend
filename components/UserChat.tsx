@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAtom } from "jotai";
 import { BACKEND_URL } from "@env";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import { Message, RecipientData } from "../src/lib/types";
+import { Message, RecipientData } from "../src/lib/types/types";
 import { messageService } from "../src/services/MessageService";
 
 interface UserChatProps {

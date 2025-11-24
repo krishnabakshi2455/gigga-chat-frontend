@@ -2,7 +2,7 @@ import { Text, View, Pressable, Image, Alert } from "react-native";
 import React, { useState } from "react";
 import { useAtom } from 'jotai';
 import { useNavigation } from "@react-navigation/native";
-import { FriendRequestProps } from "../src/lib/types";
+import { FriendRequestProps } from "../src/lib/types/types";
 import { userIdAtom } from "../src/lib/store/userId.store";
 import { userService } from "../src/services/userService";
 

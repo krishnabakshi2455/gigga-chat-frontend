@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 import { BACKEND_URL } from '@env';
-import { FriendRequest, UserItem } from '../lib/types';
+import { FriendRequest, UserItem } from '../lib/types/types';
 
 interface DecodedToken {
     userId: string;

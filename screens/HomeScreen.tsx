@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAtom } from "jotai";
 import { userIdAtom } from "../src/lib/store/userId.store";
-import { UserItem } from "../src/lib/types";
+import { UserItem } from "../src/lib/types/types";
 import User from "../components/User";
 import { userService } from "../src/services/userService";
 
