@@ -88,12 +88,20 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.krishnabakshi.giggachat'
-    defaultConfig {
+    // defaultConfig {
+    //     applicationId 'com.krishnabakshi.giggachat'
+    //     minSdkVersion rootProject.ext.minSdkVersion
+    //     targetSdkVersion rootProject.ext.targetSdkVersion
+    //     versionCode 1
+    //     versionName "1.0.0"
+    // }
+     defaultConfig {
         applicationId 'com.krishnabakshi.giggachat'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+        multiDexEnabled true
     }
     signingConfigs {
         debug {
@@ -117,9 +125,18 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
+    // packagingOptions {
+    //     jniLibs {
+    //         useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+    //     }
+    // }
     packagingOptions {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            pickFirsts += ['lib/x86/libc++_shared.so']
+            pickFirsts += ['lib/x86_64/libc++_shared.so']
+            pickFirsts += ['lib/armeabi-v7a/libc++_shared.so']
+            pickFirsts += ['lib/arm64-v8a/libc++_shared.so']
         }
     }
     androidResources {
@@ -148,12 +165,16 @@ android {
 }
 
 dependencies {
-    // The version of react-native is set by the React Native Gradle Plugin
-    implementation("com.facebook.react:react-android")
-
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
     def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
+
+    // MultiDex support
+    implementation 'androidx.multidex:multidex:2.0.1'
+    
+    // The version of react-native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+
 
     if (isGifEnabled) {
         // For animated gif support
