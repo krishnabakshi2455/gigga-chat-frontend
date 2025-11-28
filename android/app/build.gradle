@@ -157,11 +157,9 @@ android {
     }
 }
 
-// Forces a single version of worklets to prevent duplicate classes
+// Exclude worklets from all modules to prevent duplicate classes
 configurations.all {
-    resolutionStrategy {
-        force 'com.swmansion.worklets:worklets:0.6.1'
-    }
+    exclude group: 'com.swmansion.worklets', module: 'worklets'
 }
 
 dependencies {
