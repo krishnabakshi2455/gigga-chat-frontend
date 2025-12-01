@@ -42,40 +42,16 @@ yarn-error.*
 config.ts
 # yarn.lock
 
-# Android
-android/.gradle/
-android/app/build/
-android/build/
-android/local.properties
-android/.idea/
-
 # Keystores — DO NOT COMMIT
 android/app/*.keystore
 android/app/*.jks
-
-# Gradle caches
-**/gradle-wrapper.jar
-**/gradle/wrapper/gradle-wrapper.properties
 
 # Buck
 buck-out/
 .buckconfig.local
 
-# iOS
-ios/Pods/
-ios/build/
-ios/.idea/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-*.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata
-DerivedData/
-*.xcworkspace
-
 .github
+**/android/local.properties
 
 rm -rf node_modules yarn.lock .yarn/cache
 Remove-Item -Recurse -Force node_modules, yarn.lock, .yarn\cache
