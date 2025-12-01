@@ -41,7 +41,7 @@ export const isTokenExpired = (token: string): boolean => {
 // Check backend connectivity
 export const checkBackendConnection = async (): Promise<boolean> => {
     try {
-        console.log('🔌 Checking backend connection:', BACKEND_URL);
+        console.log('🔌 Checking backend connection:', BACKEND_URL?true:false);
         const response = await axios.get(`${BACKEND_URL}/health`, {
             timeout: 5000,
         });
