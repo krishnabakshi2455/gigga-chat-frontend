@@ -240,7 +240,7 @@ class CallService {
         return this.activeCall;
     }
 
-    setActiveCall(callData: CallData): void {
+    setActiveCall(callData: CallData | null): void {
         this.activeCall = callData;
     }
 

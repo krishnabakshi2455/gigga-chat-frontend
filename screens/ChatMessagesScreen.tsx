@@ -166,6 +166,7 @@ const ChatMessagesScreen = () => {
                                 callData={incomingCall}
                                 onAccept={handleAcceptIncomingCall}
                                 onReject={handleRejectIncomingCall}
+                                visible={!!incomingCall}
                             />
                         )}
 

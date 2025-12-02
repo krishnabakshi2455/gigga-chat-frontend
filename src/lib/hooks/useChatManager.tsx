@@ -2,15 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Alert, AppState, Keyboard } from "react-native";
 import { useAtom } from "jotai";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { CallData, ExtendedMessage, RecipientData } from "../src/lib/types";
-// import { userIdAtom, userTokenAtom } from "../src/lib/store/userId.store";
-// import { messageService } from "../src/services/MessageService";
-// import { socketService } from "../src/services/socketServices";
-// import { cloudinaryService } from "../src/services/CloudinaryService";
-// import { requestPermissions } from "../src/lib/utils/permissionUtils";
-// import { callService } from "../src/services/CallService";
-// import { startRecording, stopRecording } from "../src/lib/hooks/AudioRecorder";
-// import { messageDeletionService } from "../src/services/DeleteMessage";
 import { Auth_Token } from "@env";
 import { CallData, ExtendedMessage, RecipientData } from "../types/types";
 import { userIdAtom, userTokenAtom } from "../store/userId.store";
@@ -50,6 +41,9 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
     const [incomingCall, setIncomingCall] = useState<CallData | null>(null);
     const [showCallScreen, setShowCallScreen] = useState(false);
 
+    // CHANGED: Added ref to store timeout IDs for proper cleanup
+    const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     const scrollViewRef = useRef<any>(null);
 
     // Scroll helper
@@ -84,50 +78,87 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
         loadMessages();
     }, [userId, recipientId, scrollToBottom]);
 
-    // Call event handlers
+    // CHANGED: Fixed call event handlers with proper cleanup and stable references
     useEffect(() => {
-        socketService.on('call:incoming', (data: CallData) => {
+        const handleIncomingCall = (data: CallData) => {
             console.log('📞 Incoming call:', data);
             setIncomingCall(data);
-        });
+            // CHANGED: Store call data in callService
+            callService.setActiveCall(data);
+        };
 
-        socketService.on('call:accepted', (data: any) => {
+        const handleCallAccepted = (data: any) => {
             console.log('✅ Call accepted:', data);
-            setActiveCall(incomingCall);
+            // CHANGED: Clear timeout when call is accepted
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
+            setActiveCall(prev => prev); // Keep current active call
             setIncomingCall(null);
             setShowCallScreen(true);
-        });
+        };
 
-        socketService.on('call:rejected', (data: any) => {
+        const handleCallRejected = (data: any) => {
             console.log('❌ Call rejected:', data);
+            // CHANGED: Clear timeout
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
             Alert.alert('Call Rejected', 'The recipient rejected your call');
             setActiveCall(null);
             setIncomingCall(null);
             setShowCallScreen(false);
-        });
+        };
 
-        socketService.on('call:ended', (data: any) => {
+        const handleCallEnded = (data: any) => {
             console.log('📴 Call ended:', data);
+            // CHANGED: Clear timeout
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
             setActiveCall(null);
             setIncomingCall(null);
             setShowCallScreen(false);
-        });
+        };
 
-        socketService.on('call:timeout', (data: any) => {
+        const handleCallTimeout = (data: any) => {
             console.log('⏰ Call timeout:', data);
+            // CHANGED: Clear timeout
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
             Alert.alert('Call Timeout', 'The recipient did not answer');
             setActiveCall(null);
+            setIncomingCall(null);
             setShowCallScreen(false);
-        });
+        };
+
+        // CHANGED: Properly register and cleanup event listeners
+        socketService.on('call:incoming', handleIncomingCall);
+        socketService.on('call:accepted', handleCallAccepted);
+        socketService.on('call:rejected', handleCallRejected);
+        socketService.on('call:ended', handleCallEnded);
+        socketService.on('call:timeout', handleCallTimeout);
 
         return () => {
-            socketService.off('call:incoming');
-            socketService.off('call:accepted');
-            socketService.off('call:rejected');
-            socketService.off('call:ended');
-            socketService.off('call:timeout');
+            // CHANGED: Proper cleanup with specific function references
+            socketService.off('call:incoming', handleIncomingCall);
+            socketService.off('call:accepted', handleCallAccepted);
+            socketService.off('call:rejected', handleCallRejected);
+            socketService.off('call:ended', handleCallEnded);
+            socketService.off('call:timeout', handleCallTimeout);
+
+            // CHANGED: Clear any pending timeouts
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
         };
-    }, [incomingCall]);
+    }, []); // CHANGED: Empty dependency array since we use stable callbacks
 
     // Media Upload Handlers
     const handleImageUpload = async (imageUri: string) => {
@@ -367,7 +398,7 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
         );
     };
 
-    // Call handlers
+    // CHANGED: Fixed video call handler with proper timeout management
     const handleVideoCall = async () => {
         if (!recepientData || !userId) return;
 
@@ -390,16 +421,24 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
                     recipientName: recepientData.name,
                     timestamp: new Date().toISOString()
                 };
+
                 setActiveCall(callData);
                 setShowCallScreen(true);
+                callService.setActiveCall(callData);
 
-                setTimeout(() => {
-                    if (showCallScreen && activeCall?.callId === callId) {
+                // CHANGED: Store timeout in ref and use it to check call status
+                callTimeoutRef.current = setTimeout(() => {
+                    // Check if we still have an active call with this ID
+                    const currentCall = callService.getActiveCall();
+                    if (currentCall?.callId === callId) {
+                        console.log('⏰ Call timeout triggered for:', callId);
                         socketService.callTimeout(callId, recipientId);
                         setShowCallScreen(false);
                         setActiveCall(null);
+                        callService.setActiveCall(null);
                         Alert.alert('Call Timeout', 'No answer from recipient');
                     }
+                    callTimeoutRef.current = null;
                 }, 30000);
             } else {
                 Alert.alert('Call Failed', 'Could not initiate video call');
@@ -410,6 +449,7 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
         }
     };
 
+    // CHANGED: Fixed audio call handler with proper timeout management
     const handleAudioCall = async () => {
         if (!recepientData || !userId) return;
 
@@ -432,16 +472,24 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
                     recipientName: recepientData.name,
                     timestamp: new Date().toISOString()
                 };
+
                 setActiveCall(callData);
                 setShowCallScreen(true);
+                callService.setActiveCall(callData);
 
-                setTimeout(() => {
-                    if (showCallScreen && activeCall?.callId === callId) {
+                // CHANGED: Store timeout in ref and use it to check call status
+                callTimeoutRef.current = setTimeout(() => {
+                    // Check if we still have an active call with this ID
+                    const currentCall = callService.getActiveCall();
+                    if (currentCall?.callId === callId) {
+                        console.log('⏰ Call timeout triggered for:', callId);
                         socketService.callTimeout(callId, recipientId);
                         setShowCallScreen(false);
                         setActiveCall(null);
+                        callService.setActiveCall(null);
                         Alert.alert('Call Timeout', 'No answer from recipient');
                     }
+                    callTimeoutRef.current = null;
                 }, 30000);
             } else {
                 Alert.alert('Call Failed', 'Could not initiate audio call');
@@ -452,28 +500,50 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
         }
     };
 
+    // CHANGED: Updated call end handler to clear timeout
     const handleCallEnd = () => {
+        if (callTimeoutRef.current) {
+            clearTimeout(callTimeoutRef.current);
+            callTimeoutRef.current = null;
+        }
+
         if (activeCall) {
             callService.endCall();
         }
+
         setShowCallScreen(false);
         setActiveCall(null);
         setIncomingCall(null);
+        callService.setActiveCall(null);
     };
 
-    const handleAcceptIncomingCall = () => {
+    // CHANGED: Updated accept call handler
+    const handleAcceptIncomingCall = async () => {
         if (incomingCall) {
-            callService.acceptCall(incomingCall.callId, incomingCall.callerId);
+            // Clear any existing timeout
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
+
+            await callService.acceptCall(incomingCall.callId, incomingCall.callerId);
             setActiveCall(incomingCall);
             setIncomingCall(null);
             setShowCallScreen(true);
         }
     };
 
+    // CHANGED: Updated reject call handler
     const handleRejectIncomingCall = () => {
         if (incomingCall) {
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
+
             callService.rejectCall(incomingCall.callId, incomingCall.callerId);
             setIncomingCall(null);
+            callService.setActiveCall(null);
         }
     };
 
