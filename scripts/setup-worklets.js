@@ -15,3 +15,4 @@ fs.writeFileSync(pluginFile, content, 'utf8');
 
 console.log('✅ Created react-native-worklets/plugin.js symlink to reanimated');
 // "@ | Out-File -FilePath "scripts\setup - worklets.js" -Encoding UTF8
+
