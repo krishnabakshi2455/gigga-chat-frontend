@@ -96,7 +96,6 @@ export class MessageService {
         }
     }
 
-    // Socket event handlers
     handleReceiveMessage = (
         data: any,
         _id: string,
@@ -104,19 +103,44 @@ export class MessageService {
         setMessages: React.Dispatch<React.SetStateAction<ExtendedMessage[]>>,
         scrollToBottom: () => void
     ) => {
-        if (data.recipientId !== currentUserId && data.senderId === currentUserId) return;
+        // Only process messages for the current conversation
+        if (data.senderId !== _id && data.recipientId !== _id) return;
 
         const newMessage: ExtendedMessage = {
-            _id: Date.now().toString(),
+            _id: data.messageId || `server-${Date.now()}`, // Use server-provided ID if available
             messageType: data.messageType || "text",
             senderId: { _id: data.senderId },
             timeStamp: data.timestamp || new Date().toISOString(),
             message: data.message,
             imageUrl: data.messageType === "image" ? data.message : undefined,
             audioUrl: data.messageType === "audio" ? data.message : undefined,
+            conversation_id: this.generateConversationId(data.senderId, data.recipientId),
         };
 
-        setMessages((prev) => [...prev, newMessage]);
+        // Remove any optimistic message with temp ID and add the real message
+        setMessages((prev) => {
+            // Check if this message already exists (by content and sender)
+            const messageExists = prev.some(msg =>
+                (msg._id && msg._id === data.messageId) || // Check by server ID
+                (msg.message === data.message &&
+                    msg.senderId._id === data.senderId &&
+                    msg.messageType === data.messageType)
+            );
+
+            if (messageExists) {
+                return prev; // Don't add duplicate
+            }
+
+            // Filter out temporary messages that might be duplicates
+            const filtered = prev.filter(msg =>
+                !msg._id.startsWith('temp-') ||
+                msg.senderId._id !== data.senderId ||
+                msg.message !== data.message
+            );
+
+            return [...filtered, newMessage];
+        });
+
         scrollToBottom();
     };
 
@@ -207,9 +231,12 @@ export class MessageService {
                 actualContent = content;
             }
 
-            // Create a new message object for immediate UI update
-            const newMessage: ExtendedMessage = {
-                _id: `temp-${Date.now()}`,
+            // Generate a temporary ID for optimistic UI update
+            const tempId = `temp-${Date.now()}`;
+
+            // Create a new message object for optimistic UI update
+            const tempMessage: ExtendedMessage = {
+                _id: tempId,
                 messageType,
                 senderId: { _id: userId },
                 timeStamp: new Date().toISOString(),
@@ -218,16 +245,21 @@ export class MessageService {
 
             // Set appropriate properties based on message type
             if (messageType === "text") {
-                newMessage.message = actualContent;
+                tempMessage.message = actualContent;
             } else if (messageType === "image") {
-                newMessage.imageUrl = actualContent;
+                tempMessage.imageUrl = actualContent;
             } else if (messageType === "audio") {
-                newMessage.audioUrl = actualContent;
+                tempMessage.audioUrl = actualContent;
             }
+
+            // Add to local state for optimistic UI update
+            setMessages((prev) => [...prev, tempMessage]);
+            setMessage("");
+            scrollToBottom();
 
             let sent = false;
 
-            // Send via socket first
+            // Send via socket
             if (messageType === "text") {
                 sent = await socketService.sendMessage(_id, actualContent, "text");
             } else if (messageType === "image" && content) {
@@ -237,6 +269,8 @@ export class MessageService {
             }
 
             if (!sent) {
+                // If sending fails, remove the optimistic message
+                setMessages((prev) => prev.filter(msg => msg._id !== tempId));
                 Alert.alert("Error", "Could not send message. Please check your connection.");
                 return false;
             }
@@ -251,10 +285,6 @@ export class MessageService {
                 timeStamp: new Date().toISOString(),
             });
 
-            // Add to local state for immediate UI update
-            setMessages((prev) => [...prev, newMessage]);
-            setMessage("");
-            scrollToBottom();
             return true;
         } catch (error) {
             console.log("error in sending the message", error);

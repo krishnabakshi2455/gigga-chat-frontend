@@ -32,7 +32,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             className="flex-row items-center px-2.5 py-2.5 border-t border-gray-700 bg-black"
             style={{
                 // CHANGED: Removed marginBottom to fix keyboard covering issue
-                paddingBottom: keyboardHeight > 0 ? keyboardHeight : 0,
+                paddingBottom: keyboardHeight > 7 ? keyboardHeight : 7,
             }}
         >
             <TextInput

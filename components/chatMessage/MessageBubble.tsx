@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { View, Text, Image, Pressable, Modal, TouchableOpacity, Dimensions, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,7 +31,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             setImageModalVisible(true);
         }
     };
-    // console.log("item",item.conversationId);
+    // console.log("item",item.messageType);
     
 
     const handleDeleteFromModal = () => {

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from "react";
+import React, { useLayoutEffect, useEffect } from "react";
 import {
     Text,
     View,
@@ -98,6 +98,18 @@ const ChatMessagesScreen = () => {
         recipientImage: image
     });
 
+    // FIX: Scroll to bottom when messages are loaded
+    useEffect(() => {
+        if (!loadingMessages && messages.length > 0) {
+            const timer = setTimeout(() => {
+                if (scrollViewRef.current) {
+                    scrollViewRef.current.scrollToEnd({ animated: false });
+                }
+            }, 600);
+            return () => clearTimeout(timer);
+        }
+    }, [loadingMessages, messages.length]);
+
     const handleImageSelected = (uri: string) => {
         handleImageUpload(uri);
     };
@@ -178,6 +190,8 @@ const ChatMessagesScreen = () => {
                                     onContentSizeChange={handleContentSizeChange}
                                     keyboardDismissMode="on-drag"
                                     keyboardShouldPersistTaps="handled"
+                                    contentContainerStyle={{ paddingBottom: 10 }}
+                                    showsVerticalScrollIndicator={true}
                                 >
                                     {loadingMessages && (
                                         <View className="flex-1 justify-center items-center p-10">
@@ -198,7 +212,7 @@ const ChatMessagesScreen = () => {
                                         const isSelected = selectedMessages.includes(item._id);
                                         return (
                                             <MessageBubble
-                                                key={item._id || index}
+                                                key={`${item._id}-${index}-${item.timeStamp}`}
                                                 item={item}
                                                 userId={userId}
                                                 isSelected={isSelected}

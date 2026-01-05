@@ -43,19 +43,31 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
 
     // CHANGED: Added ref to store timeout IDs for proper cleanup
     const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
     const scrollViewRef = useRef<any>(null);
 
-    // Scroll helper
-    const scrollToBottom = useCallback(() => {
+    // FIX: Remove initialLoadDoneRef and use a simpler approach
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // FIX: Simple and reliable scrollToBottom function
+    const scrollToBottom = useCallback((animated: boolean = true) => {
         if (scrollViewRef.current) {
-            setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+            // Clear any existing timeout
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
+
+            scrollTimeoutRef.current = setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated });
+            }, animated ? 100 : 50);
         }
     }, []);
 
-    // Fetch historical messages
+    // NEW: Handle content size change properly - SIMPLIFIED
+    const handleContentSizeChange = useCallback(() => {
+        // No-op - we'll handle scrolling differently
+    }, []);
+
+    // Fetch historical messages - FIXED: Simplified approach
     useEffect(() => {
         const loadMessages = async () => {
             if (!userId || !recipientId) return;
@@ -66,17 +78,51 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
 
                 if (historicalMessages.length > 0) {
                     setMessages(historicalMessages);
-                    setTimeout(() => scrollToBottom(), 300);
+
+                    // FIX: Use a more reliable approach - scroll AFTER state update and render
+                    // First, wait for the state to update
+                    setTimeout(() => {
+                        // Then wait for the render
+                        setTimeout(() => {
+                            if (scrollViewRef.current) {
+                                scrollViewRef.current.scrollToEnd({ animated: false });
+                            }
+                        }, 100);
+                    }, 0);
                 }
             } catch (error) {
                 console.error('❌ Error loading messages:', error);
             } finally {
-                setLoadingMessages(false);
+                // FIX: Set loading to false after a short delay to ensure render
+                setTimeout(() => {
+                    setLoadingMessages(false);
+                }, 200);
             }
         };
 
         loadMessages();
-    }, [userId, recipientId, scrollToBottom]);
+
+        // Cleanup
+        return () => {
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
+        };
+    }, [userId, recipientId]);
+
+    // NEW: Auto-scroll when new messages are added (but not on initial load)
+    const isInitialLoad = useRef(true);
+    useEffect(() => {
+        if (messages.length > 0) {
+            if (isInitialLoad.current) {
+                // Skip auto-scroll on initial load - we handle it above
+                isInitialLoad.current = false;
+            } else {
+                // Auto-scroll for new messages
+                scrollToBottom(true);
+            }
+        }
+    }, [messages.length, scrollToBottom]);
 
     // CHANGED: Fixed call event handlers with proper cleanup and stable references
     useEffect(() => {
@@ -341,7 +387,10 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
 
         const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
             setKeyboardHeight(e.endCoordinates.height);
-            scrollToBottom();
+            // Only scroll if initial load is done
+            if (!isInitialLoad.current) {
+                scrollToBottom();
+            }
         });
         const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
             setKeyboardHeight(0);
@@ -360,6 +409,11 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
             }
             socketService.removeAllListeners();
             messageService.cleanup();
+
+            // Cleanup scroll timeout
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
         };
     }, [userId, userToken, recipientId, handleReceiveMessage, handleUserTyping, handleConversationJoined, handleUserJoinedConversation, handleUserLeftConversation, handleMessageSent, scrollToBottom]);
 
@@ -590,10 +644,6 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
                 setSelectedMessages([]);
             }
         );
-    };
-
-    const handleContentSizeChange = () => {
-        scrollToBottom();
     };
 
     return {
