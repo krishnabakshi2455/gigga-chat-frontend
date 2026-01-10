@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Alert, AppState, Keyboard } from "react-native";
 import { useAtom } from "jotai";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,10 +20,11 @@ interface UseChatManagerProps {
 }
 
 export const useChatManager = ({ recipientId, recipientName, recipientImage }: UseChatManagerProps) => {
-    // State management
+    // ============================================
+    // STATE MANAGEMENT
+    // ============================================
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
     const [messages, setMessages] = useState<ExtendedMessage[]>([]);
-    const [recepientData, setRecepientData] = useState<RecipientData>();
     const [message, setMessage] = useState("");
     const [userId] = useAtom(userIdAtom);
     const [userToken] = useAtom(userTokenAtom);
@@ -41,17 +42,30 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
     const [incomingCall, setIncomingCall] = useState<CallData | null>(null);
     const [showCallScreen, setShowCallScreen] = useState(false);
 
-    // CHANGED: Added ref to store timeout IDs for proper cleanup
+    // ============================================
+    // REFS
+    // ============================================
     const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollViewRef = useRef<any>(null);
-
-    // FIX: Remove initialLoadDoneRef and use a simpler approach
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isInitialLoad = useRef(true);
+    const isMountedRef = useRef(true);
+    const processedCallEvents = useRef(new Set<string>());
 
-    // FIX: Simple and reliable scrollToBottom function
+    // ============================================
+    // MEMOIZED VALUES
+    // ============================================
+    const recepientData: RecipientData = useMemo(() => ({
+        _id: recipientId,
+        name: recipientName,
+        image: recipientImage
+    }), [recipientId, recipientName, recipientImage]);
+
+    // ============================================
+    // SCROLL UTILITIES
+    // ============================================
     const scrollToBottom = useCallback((animated: boolean = true) => {
         if (scrollViewRef.current) {
-            // Clear any existing timeout
             if (scrollTimeoutRef.current) {
                 clearTimeout(scrollTimeoutRef.current);
             }
@@ -62,12 +76,349 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
         }
     }, []);
 
-    // NEW: Handle content size change properly - SIMPLIFIED
     const handleContentSizeChange = useCallback(() => {
-        // No-op - we'll handle scrolling differently
+        // No-op - scrolling handled elsewhere
     }, []);
 
-    // Fetch historical messages - FIXED: Simplified approach
+    // ============================================
+    // UTILITY FUNCTIONS
+    // ============================================
+    const clearCallTimeout = useCallback(() => {
+        if (callTimeoutRef.current) {
+            clearTimeout(callTimeoutRef.current);
+            callTimeoutRef.current = null;
+        }
+    }, []);
+
+    const cleanupCall = useCallback(() => {
+        clearCallTimeout();
+        setActiveCall(null);
+        setIncomingCall(null);
+        setShowCallScreen(false);
+        callService.clearActiveCall();
+        processedCallEvents.current.clear();
+    }, [clearCallTimeout]);
+
+    // ============================================
+    // MESSAGE EVENT HANDLERS (MEMOIZED)
+    // ============================================
+    const handleReceiveMessage = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+        messageService.handleReceiveMessage(data, recipientId, userId, setMessages, scrollToBottom);
+    }, [recipientId, userId, scrollToBottom]);
+
+    const handleUserTyping = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+        messageService.handleUserTyping(data, recipientId, setIsTyping);
+    }, [recipientId]);
+
+    const handleConversationJoined = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+        messageService.handleConversationJoined(data, setIsOtherUserOnline, setConnectionStatus);
+    }, []);
+
+    const handleUserJoinedConversation = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+        messageService.handleUserJoinedConversation(data, recipientId, setIsOtherUserOnline);
+    }, [recipientId]);
+
+    const handleUserLeftConversation = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+        messageService.handleUserLeftConversation(data, recipientId, setIsOtherUserOnline);
+    }, [recipientId]);
+
+    const handleMessageSent = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+        messageService.handleMessageSent(data);
+    }, []);
+
+    // ============================================
+    // CALL EVENT HANDLERS (MEMOIZED WITH DEDUPLICATION)
+    // ============================================
+    const handleIncomingCallEvent = useCallback((data: any) => {
+        if (!isMountedRef.current || data.callerId === userId) return;
+
+        const eventKey = `incoming:${data.callId}`;
+        if (processedCallEvents.current.has(eventKey)) {
+            console.log('⚠️ Duplicate incoming call event, ignoring');
+            return;
+        }
+        processedCallEvents.current.add(eventKey);
+
+        console.log('📞 INCOMING CALL RECEIVED!', data.callId);
+
+        const callData: CallData = {
+            callId: data.callId,
+            callType: data.callType,
+            callerId: data.callerId,
+            callerName: data.callerName || 'Unknown Caller',
+            callerImage: data.callerImage,
+            recipientId: userId || '',
+            recipientName: recipientName,
+            timestamp: data.timestamp || new Date().toISOString()
+        };
+
+        setIncomingCall(callData);
+        callService.setActiveCall(callData);
+    }, [userId, recipientName]);
+
+    const handleCallAcceptedEvent = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+
+        const eventKey = `accepted:${data.callId}`;
+        if (processedCallEvents.current.has(eventKey)) {
+            console.log('⚠️ Duplicate call accepted event, ignoring');
+            return;
+        }
+        processedCallEvents.current.add(eventKey);
+
+        console.log('✅ Call accepted:', data.callId);
+        clearCallTimeout();
+
+        const currentCall = callService.getActiveCall();
+        if (currentCall?.callerId === userId) {
+            console.log('📞 Starting WebRTC as caller...');
+            callService.startWebRTC();
+        } else {
+            console.log('📞 Receiver: WebRTC already started');
+        }
+
+        setShowCallScreen(true);
+    }, [userId, clearCallTimeout]);
+
+    const handleCallRejectedEvent = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+
+        console.log('❌ Call rejected:', data.callId);
+        Alert.alert('Call Rejected', data.reason || 'The recipient rejected your call');
+        cleanupCall();
+    }, [cleanupCall]);
+
+    const handleCallEndedEvent = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+
+        console.log('📴 Call ended:', data.callId);
+        cleanupCall();
+    }, [cleanupCall]);
+
+    const handleCallTimeoutEvent = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+
+        console.log('⏰ Call timeout:', data.callId);
+        Alert.alert('Call Timeout', 'The recipient did not answer');
+        cleanupCall();
+    }, [cleanupCall]);
+
+    const handleCallFailedEvent = useCallback((data: any) => {
+        if (!isMountedRef.current) return;
+
+        console.error('❌ Call failed:', data.reason);
+        Alert.alert('Call Failed', data.reason || 'Could not initiate call');
+        cleanupCall();
+    }, [cleanupCall]);
+
+    const handleWebRTCOfferEvent = useCallback(async (data: any) => {
+        if (!isMountedRef.current) return;
+
+        try {
+            await callService.handleIncomingOffer(data.offer);
+        } catch (error) {
+            console.error('❌ Error handling WebRTC offer:', error);
+        }
+    }, []);
+
+    const handleWebRTCAnswerEvent = useCallback(async (data: any) => {
+        if (!isMountedRef.current) return;
+
+        try {
+            await callService.handleIncomingAnswer(data.answer);
+        } catch (error) {
+            console.error('❌ Error handling WebRTC answer:', error);
+        }
+    }, []);
+
+    const handleWebRTCIceCandidateEvent = useCallback(async (data: any) => {
+        if (!isMountedRef.current) return;
+
+        try {
+            await callService.handleIncomingICECandidate(data.candidate);
+        } catch (error) {
+            console.error('❌ Error handling ICE candidate:', error);
+        }
+    }, []);
+
+    // ============================================
+    // SOCKET INITIALIZATION
+    // ============================================
+    useEffect(() => {
+        isMountedRef.current = true;
+        let reconnectTimeout: NodeJS.Timeout;
+
+        const initializeSocket = async () => {
+            if (!isMountedRef.current) return;
+
+            // Get token
+            let actualUserToken: string | null = userToken;
+            if (!actualUserToken) {
+                try {
+                    actualUserToken = await AsyncStorage.getItem(Auth_Token);
+                } catch (error) {
+                    console.error('❌ Error reading token:', error);
+                }
+            }
+
+            // Validate
+            if (!userId || !actualUserToken || !recipientId) {
+                console.error('❌ Missing required parameters');
+                setConnectionStatus('disconnected');
+                return;
+            }
+
+            setConnectionStatus('connecting');
+
+            try {
+                const connected = await socketService.connect(actualUserToken, userId);
+
+                if (connected && isMountedRef.current) {
+                    console.log('✅ Socket connected:', socketService.socket?.id);
+
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    socketService.joinConversation(recipientId);
+
+                    // Register all listeners
+                    const listeners: Record<string, (...args: any[]) => void> = {
+                        // Message events
+                        'receive_message': handleReceiveMessage,
+                        'user_typing': handleUserTyping,
+                        'conversation_joined': handleConversationJoined,
+                        'user_joined_conversation': handleUserJoinedConversation,
+                        'user_left_conversation': handleUserLeftConversation,
+                        'message_sent': handleMessageSent,
+
+                        // Call events
+                        'call:incoming': handleIncomingCallEvent,
+                        'call:accepted': handleCallAcceptedEvent,
+                        'call:rejected': handleCallRejectedEvent,
+                        'call:ended': handleCallEndedEvent,
+                        'call:timeout': handleCallTimeoutEvent,
+                        'call:initiated': (data: any) => console.log('📞 Call initiated:', data.callId),
+                        'call:failed': handleCallFailedEvent,
+
+                        // WebRTC events
+                        'webrtc:offer': handleWebRTCOfferEvent,
+                        'webrtc:answer': handleWebRTCAnswerEvent,
+                        'webrtc:ice-candidate': handleWebRTCIceCandidateEvent,
+
+                        // Connection events
+                        'connect_error': (error: any) => {
+                            console.error('❌ Connection error:', error.message);
+                            if (isMountedRef.current) {
+                                setConnectionStatus('disconnected');
+                                attemptReconnection();
+                            }
+                        },
+                        'disconnect': (reason: string) => {
+                            console.log('🔌 Disconnected:', reason);
+                            if (isMountedRef.current) {
+                                setConnectionStatus('disconnected');
+                                if (reason === 'io server disconnect' || reason === 'transport close') {
+                                    attemptReconnection();
+                                }
+                            }
+                        },
+                        'connect': () => {
+                            console.log('✅ Reconnected');
+                            if (isMountedRef.current) setConnectionStatus('connected');
+                        }
+                    };
+
+                    // Register all listeners
+                    Object.entries(listeners).forEach(([event, handler]) => {
+                        socketService.on(event, handler);
+                    });
+
+                    setConnectionStatus('connected');
+                    console.log('🎉 Chat initialized');
+
+                } else if (isMountedRef.current) {
+                    setConnectionStatus('disconnected');
+                    attemptReconnection();
+                }
+            } catch (error) {
+                console.error('💥 Socket error:', error);
+                if (isMountedRef.current) {
+                    setConnectionStatus('disconnected');
+                    attemptReconnection();
+                }
+            }
+        };
+
+        const attemptReconnection = () => {
+            if (!isMountedRef.current) return;
+            reconnectTimeout = setTimeout(() => {
+                if (isMountedRef.current && userId && recipientId) {
+                    initializeSocket();
+                }
+            }, 3000);
+        };
+
+        // Initialize
+        requestPermissions();
+        initializeSocket();
+
+        // App state listener
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active' && userId && recipientId) {
+                initializeSocket();
+            } else if (nextAppState === 'background') {
+                socketService.leaveConversation(recipientId);
+            }
+        });
+
+        // Keyboard listeners
+        const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+            if (!isInitialLoad.current) scrollToBottom();
+        });
+        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+
+        // Cleanup
+        return () => {
+            isMountedRef.current = false;
+            clearTimeout(reconnectTimeout);
+            subscription.remove();
+            showSubscription.remove();
+            hideSubscription.remove();
+
+            if (recipientId) socketService.leaveConversation(recipientId);
+            if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+            clearCallTimeout();
+
+            // Remove all listeners
+            const events = [
+                'receive_message', 'user_typing', 'conversation_joined',
+                'user_joined_conversation', 'user_left_conversation', 'message_sent',
+                'call:incoming', 'call:accepted', 'call:rejected', 'call:ended',
+                'call:timeout', 'call:initiated', 'call:failed',
+                'webrtc:offer', 'webrtc:answer', 'webrtc:ice-candidate'
+            ];
+            events.forEach(event => socketService.off(event));
+        };
+    }, [
+        userId, userToken, recipientId, recipientName,
+        handleReceiveMessage, handleUserTyping, handleConversationJoined,
+        handleUserJoinedConversation, handleUserLeftConversation, handleMessageSent,
+        handleIncomingCallEvent, handleCallAcceptedEvent, handleCallRejectedEvent,
+        handleCallEndedEvent, handleCallTimeoutEvent, handleCallFailedEvent,
+        handleWebRTCOfferEvent, handleWebRTCAnswerEvent, handleWebRTCIceCandidateEvent,
+        scrollToBottom, clearCallTimeout
+    ]);
+
+    // ============================================
+    // LOAD HISTORICAL MESSAGES
+    // ============================================
     useEffect(() => {
         const loadMessages = async () => {
             if (!userId || !recipientId) return;
@@ -78,367 +429,43 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
 
                 if (historicalMessages.length > 0) {
                     setMessages(historicalMessages);
-
-                    // FIX: Use a more reliable approach - scroll AFTER state update and render
-                    // First, wait for the state to update
                     setTimeout(() => {
-                        // Then wait for the render
-                        setTimeout(() => {
-                            if (scrollViewRef.current) {
-                                scrollViewRef.current.scrollToEnd({ animated: false });
-                            }
-                        }, 100);
-                    }, 0);
+                        scrollViewRef.current?.scrollToEnd({ animated: false });
+                    }, 100);
                 }
             } catch (error) {
                 console.error('❌ Error loading messages:', error);
             } finally {
-                // FIX: Set loading to false after a short delay to ensure render
-                setTimeout(() => {
-                    setLoadingMessages(false);
-                }, 200);
+                setTimeout(() => setLoadingMessages(false), 200);
             }
         };
 
         loadMessages();
 
-        // Cleanup
         return () => {
-            if (scrollTimeoutRef.current) {
-                clearTimeout(scrollTimeoutRef.current);
-            }
+            if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
         };
     }, [userId, recipientId]);
 
-    // NEW: Auto-scroll when new messages are added (but not on initial load)
-    const isInitialLoad = useRef(true);
+    // Auto-scroll on new messages
     useEffect(() => {
         if (messages.length > 0) {
             if (isInitialLoad.current) {
-                // Skip auto-scroll on initial load - we handle it above
                 isInitialLoad.current = false;
             } else {
-                // Auto-scroll for new messages
                 scrollToBottom(true);
             }
         }
     }, [messages.length, scrollToBottom]);
 
-    // CHANGED: Fixed call event handlers with proper cleanup and stable references
-    useEffect(() => {
-        const handleIncomingCall = (data: CallData) => {
-            console.log('📞 Incoming call:', data);
-            setIncomingCall(data);
-            // CHANGED: Store call data in callService
-            callService.setActiveCall(data);
-        };
-
-        const handleCallAccepted = (data: any) => {
-            console.log('✅ Call accepted:', data);
-            // CHANGED: Clear timeout when call is accepted
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-            setActiveCall(prev => prev); // Keep current active call
-            setIncomingCall(null);
-            setShowCallScreen(true);
-        };
-
-        const handleCallRejected = (data: any) => {
-            console.log('❌ Call rejected:', data);
-            // CHANGED: Clear timeout
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-            Alert.alert('Call Rejected', 'The recipient rejected your call');
-            setActiveCall(null);
-            setIncomingCall(null);
-            setShowCallScreen(false);
-        };
-
-        const handleCallEnded = (data: any) => {
-            console.log('📴 Call ended:', data);
-            // CHANGED: Clear timeout
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-            setActiveCall(null);
-            setIncomingCall(null);
-            setShowCallScreen(false);
-        };
-
-        const handleCallTimeout = (data: any) => {
-            console.log('⏰ Call timeout:', data);
-            // CHANGED: Clear timeout
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-            Alert.alert('Call Timeout', 'The recipient did not answer');
-            setActiveCall(null);
-            setIncomingCall(null);
-            setShowCallScreen(false);
-        };
-
-        // CHANGED: Properly register and cleanup event listeners
-        socketService.on('call:incoming', handleIncomingCall);
-        socketService.on('call:accepted', handleCallAccepted);
-        socketService.on('call:rejected', handleCallRejected);
-        socketService.on('call:ended', handleCallEnded);
-        socketService.on('call:timeout', handleCallTimeout);
-
-        return () => {
-            // CHANGED: Proper cleanup with specific function references
-            socketService.off('call:incoming', handleIncomingCall);
-            socketService.off('call:accepted', handleCallAccepted);
-            socketService.off('call:rejected', handleCallRejected);
-            socketService.off('call:ended', handleCallEnded);
-            socketService.off('call:timeout', handleCallTimeout);
-
-            // CHANGED: Clear any pending timeouts
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-        };
-    }, []); // CHANGED: Empty dependency array since we use stable callbacks
-
-    // Media Upload Handlers
-    const handleImageUpload = async (imageUri: string) => {
-        const cloudinaryUrl = await cloudinaryService.uploadImage(imageUri, {
-            onUploadStart: () => setUploadingMedia(true),
-            onUploadEnd: () => setUploadingMedia(false)
-        });
-
-        if (cloudinaryUrl) {
-            await handleSend("image", cloudinaryUrl);
-        }
-    };
-
-    const handleAudioUpload = async (audioUri: string) => {
-        const cloudinaryUrl = await cloudinaryService.uploadAudio(audioUri, {
-            onUploadStart: () => setUploadingMedia(true),
-            onUploadEnd: () => setUploadingMedia(false)
-        });
-
-        if (cloudinaryUrl) {
-            await handleSend("audio", cloudinaryUrl);
-        }
-    };
-
-    // Message event handlers
-    const handleReceiveMessage = useCallback((data: any) => {
-        messageService.handleReceiveMessage(data, recipientId, userId, setMessages, scrollToBottom);
-    }, [recipientId, userId, scrollToBottom]);
-
-    const handleUserTyping = useCallback((data: any) => {
-        messageService.handleUserTyping(data, recipientId, setIsTyping);
-    }, [recipientId]);
-
-    const handleConversationJoined = useCallback((data: any) => {
-        messageService.handleConversationJoined(data, setIsOtherUserOnline, setConnectionStatus);
-    }, []);
-
-    const handleUserJoinedConversation = useCallback((data: any) => {
-        messageService.handleUserJoinedConversation(data, recipientId, setIsOtherUserOnline);
-    }, [recipientId]);
-
-    const handleUserLeftConversation = useCallback((data: any) => {
-        messageService.handleUserLeftConversation(data, recipientId, setIsOtherUserOnline);
-    }, [recipientId]);
-
-    const handleMessageSent = useCallback((data: any) => {
-        messageService.handleMessageSent(data);
-    }, []);
-
-    const handleTextChange = (text: string) => {
+    // ============================================
+    // HANDLER FUNCTIONS
+    // ============================================
+    const handleTextChange = useCallback((text: string) => {
         messageService.handleTextChange(text, setMessage, recipientId, connectionStatus);
-    };
+    }, [recipientId, connectionStatus]);
 
-    // Socket connection and event setup
-    useEffect(() => {
-        console.log('🎯 CHAT SCREEN MOUNTED - Starting socket connection');
-
-        let reconnectTimeout: NodeJS.Timeout;
-        let isMounted = true;
-
-        const initializeSocket = async () => {
-            if (!isMounted) return;
-
-            let actualUserToken: string | null = userToken;
-            if (!actualUserToken) {
-                console.log('🔄 Token not in Jotai, checking AsyncStorage...');
-                try {
-                    actualUserToken = await AsyncStorage.getItem(Auth_Token);
-                    console.log('🔑 Token from AsyncStorage:', actualUserToken ? `Present (${actualUserToken.length} chars)` : 'MISSING');
-                } catch (error) {
-                    console.error('❌ Error reading token from AsyncStorage:', error);
-                }
-            }
-
-            console.log('📋 Parameters:', {
-                userId: userId ? `✅ ${userId.substring(0, 8)}...` : '❌ MISSING',
-                userToken: actualUserToken ? `✅ Present (${actualUserToken.length} chars)` : '❌ MISSING',
-                recipientId: recipientId ? `✅ ${recipientId}` : '❌ MISSING'
-            });
-
-            if (!userId || !actualUserToken || !recipientId) {
-                console.error('❌ Missing required parameters for socket connection');
-                setConnectionStatus('disconnected');
-                return;
-            }
-
-            setConnectionStatus('connecting');
-            console.log('🔄 Attempting socket connection...');
-
-            try {
-                const connected = await socketService.connect(actualUserToken, userId);
-
-                if (connected && isMounted) {
-                    console.log('✅ Socket connected successfully');
-
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    socketService.joinConversation(recipientId);
-
-                    const setupListeners = () => {
-                        socketService.on('receive_message', handleReceiveMessage);
-                        socketService.on('user_typing', handleUserTyping);
-                        socketService.on('conversation_joined', handleConversationJoined);
-                        socketService.on('user_joined_conversation', handleUserJoinedConversation);
-                        socketService.on('user_left_conversation', handleUserLeftConversation);
-                        socketService.on('message_sent', handleMessageSent);
-
-                        socketService.on('connect_error', (error) => {
-                            console.error('❌ Socket connection error:', error.message);
-                            if (isMounted) {
-                                setConnectionStatus('disconnected');
-                                attemptReconnection();
-                            }
-                        });
-
-                        socketService.on('disconnect', (reason) => {
-                            console.log('🔌 Socket disconnected. Reason:', reason);
-                            if (isMounted) {
-                                setConnectionStatus('disconnected');
-                                if (reason === 'io server disconnect' || reason === 'transport close') {
-                                    attemptReconnection();
-                                }
-                            }
-                        });
-
-                        socketService.on('connect', () => {
-                            console.log('✅ Socket reconnected!');
-                            if (isMounted) {
-                                setConnectionStatus('connected');
-                            }
-                        });
-
-                        socketService.on('ping', () => {
-                            console.log('💓 Socket heartbeat received');
-                        });
-                    };
-
-                    setupListeners();
-                    setConnectionStatus('connected');
-                    console.log('🎉 Chat fully initialized and connected');
-
-                } else if (isMounted) {
-                    console.error('❌ Socket connection failed');
-                    setConnectionStatus('disconnected');
-                    attemptReconnection();
-                }
-            } catch (error) {
-                console.error('💥 Socket initialization error:', error);
-                if (isMounted) {
-                    setConnectionStatus('disconnected');
-                    attemptReconnection();
-                }
-            }
-        };
-
-        const attemptReconnection = () => {
-            if (!isMounted) return;
-
-            console.log('🔄 Attempting reconnection in 3 seconds...');
-            reconnectTimeout = setTimeout(() => {
-                if (isMounted && userId && recipientId) {
-                    console.log('🔄 Reconnecting now...');
-                    initializeSocket();
-                }
-            }, 3000);
-        };
-
-        requestPermissions();
-        initializeSocket();
-
-        const subscription = AppState.addEventListener('change', nextAppState => {
-            console.log('📱 App state changed to:', nextAppState);
-            if (nextAppState === 'active' && userId && recipientId) {
-                console.log('🔄 App became active, reconnecting socket...');
-                initializeSocket();
-            } else if (nextAppState === 'background') {
-                console.log('📱 App went to background, leaving conversation...');
-                socketService.leaveConversation(recipientId);
-            }
-        });
-
-        const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-            setKeyboardHeight(e.endCoordinates.height);
-            // Only scroll if initial load is done
-            if (!isInitialLoad.current) {
-                scrollToBottom();
-            }
-        });
-        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-            setKeyboardHeight(0);
-        });
-
-        return () => {
-            console.log('🧹 Cleaning up chat screen...');
-            isMounted = false;
-            clearTimeout(reconnectTimeout);
-            subscription.remove();
-            showSubscription.remove();
-            hideSubscription.remove();
-
-            if (recipientId) {
-                socketService.leaveConversation(recipientId);
-            }
-            socketService.removeAllListeners();
-            messageService.cleanup();
-
-            // Cleanup scroll timeout
-            if (scrollTimeoutRef.current) {
-                clearTimeout(scrollTimeoutRef.current);
-            }
-        };
-    }, [userId, userToken, recipientId, handleReceiveMessage, handleUserTyping, handleConversationJoined, handleUserJoinedConversation, handleUserLeftConversation, handleMessageSent, scrollToBottom]);
-
-    // Fetch recipient data
-    useEffect(() => {
-        const fetchRecepientData = async () => {
-            if (!userId) return;
-
-            try {
-                const simulatedRecipient: RecipientData = {
-                    _id: recipientId,
-                    name: recipientName,
-                    image: recipientImage
-                };
-                setRecepientData(simulatedRecipient);
-            } catch (error) {
-                console.log("Error fetching recipient data", error);
-            }
-        };
-
-        fetchRecepientData();
-    }, [recipientId, recipientName, recipientImage, userId]);
-
-    // Message handlers
-    const handleSend = async (messageType: any, content?: string) => {
+    const handleSend = useCallback(async (messageType: any, content?: string) => {
         await messageService.sendMessage(
             messageType,
             content,
@@ -450,28 +477,41 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
             scrollToBottom,
             connectionStatus
         );
-    };
+    }, [recipientId, userId, message, scrollToBottom, connectionStatus]);
 
-    // CHANGED: Fixed video call handler with proper timeout management
-    const handleVideoCall = async () => {
-        if (!recepientData || !userId) return;
+    const handleImageUpload = useCallback(async (imageUri: string) => {
+        const cloudinaryUrl = await cloudinaryService.uploadImage(imageUri, {
+            onUploadStart: () => setUploadingMedia(true),
+            onUploadEnd: () => setUploadingMedia(false)
+        });
+
+        if (cloudinaryUrl) await handleSend("image", cloudinaryUrl);
+    }, [handleSend]);
+
+    const initiateCall = useCallback(async (callType: 'video' | 'audio') => {
+        if (!recepientData || !userId || recipientId === userId) {
+            Alert.alert('Error', 'Cannot initiate call');
+            return;
+        }
 
         try {
+            console.log(`📞 Initiating ${callType} call to:`, recipientId);
+
             const callId = await callService.initiateCall(
                 recipientId,
-                'video',
+                callType,
                 userId,
-                'You',
+                recepientData.name,
                 undefined
             );
 
             if (callId) {
                 const callData: CallData = {
                     callId,
-                    callType: 'video',
+                    callType,
                     callerId: userId,
-                    callerName: 'You',
-                    recipientId: recipientId,
+                    callerName: recepientData.name,
+                    recipientId,
                     recipientName: recepientData.name,
                     timestamp: new Date().toISOString()
                 };
@@ -480,172 +520,103 @@ export const useChatManager = ({ recipientId, recipientName, recipientImage }: U
                 setShowCallScreen(true);
                 callService.setActiveCall(callData);
 
-                // CHANGED: Store timeout in ref and use it to check call status
+                // Set timeout
                 callTimeoutRef.current = setTimeout(() => {
-                    // Check if we still have an active call with this ID
                     const currentCall = callService.getActiveCall();
                     if (currentCall?.callId === callId) {
-                        console.log('⏰ Call timeout triggered for:', callId);
                         socketService.callTimeout(callId, recipientId);
-                        setShowCallScreen(false);
-                        setActiveCall(null);
-                        callService.setActiveCall(null);
+                        cleanupCall();
                         Alert.alert('Call Timeout', 'No answer from recipient');
                     }
-                    callTimeoutRef.current = null;
                 }, 30000);
             } else {
-                Alert.alert('Call Failed', 'Could not initiate video call');
+                Alert.alert('Call Failed', `Could not initiate ${callType} call`);
             }
         } catch (error) {
-            console.error('Error initiating video call:', error);
-            Alert.alert('Call Failed', 'An error occurred while initiating the call');
+            console.error('❌ Error initiating call:', error);
+            Alert.alert('Call Failed', 'An error occurred');
         }
-    };
+    }, [recepientData, userId, recipientId, cleanupCall]);
 
-    // CHANGED: Fixed audio call handler with proper timeout management
-    const handleAudioCall = async () => {
-        if (!recepientData || !userId) return;
+    const handleVideoCall = useCallback(() => initiateCall('video'), [initiateCall]);
+    const handleAudioCall = useCallback(() => initiateCall('audio'), [initiateCall]);
+
+    const handleCallEnd = useCallback(() => {
+        if (activeCall) callService.endCall();
+        cleanupCall();
+    }, [activeCall, cleanupCall]);
+
+    const handleAcceptIncomingCall = useCallback(async () => {
+        if (!incomingCall) return;
 
         try {
-            const callId = await callService.initiateCall(
-                recipientId,
-                'audio',
-                userId,
-                'You',
-                undefined
-            );
+            console.log('✅ Accepting call:', incomingCall.callId);
+            clearCallTimeout();
 
-            if (callId) {
-                const callData: CallData = {
-                    callId,
-                    callType: 'audio',
-                    callerId: userId,
-                    callerName: 'You',
-                    recipientId: recipientId,
-                    recipientName: recepientData.name,
-                    timestamp: new Date().toISOString()
-                };
+            const success = await callService.acceptCall(incomingCall.callId, incomingCall.callerId);
 
-                setActiveCall(callData);
+            if (success) {
+                setActiveCall(incomingCall);
+                setIncomingCall(null);
                 setShowCallScreen(true);
-                callService.setActiveCall(callData);
 
-                // CHANGED: Store timeout in ref and use it to check call status
-                callTimeoutRef.current = setTimeout(() => {
-                    // Check if we still have an active call with this ID
-                    const currentCall = callService.getActiveCall();
-                    if (currentCall?.callId === callId) {
-                        console.log('⏰ Call timeout triggered for:', callId);
-                        socketService.callTimeout(callId, recipientId);
-                        setShowCallScreen(false);
-                        setActiveCall(null);
-                        callService.setActiveCall(null);
-                        Alert.alert('Call Timeout', 'No answer from recipient');
-                    }
-                    callTimeoutRef.current = null;
-                }, 30000);
+                console.log('📞 Initializing WebRTC as receiver...');
+                await callService.startWebRTC();
+                console.log('✅ WebRTC initialized, ready to handle offers');
             } else {
-                Alert.alert('Call Failed', 'Could not initiate audio call');
+                Alert.alert('Call Failed', 'Could not accept the call');
             }
         } catch (error) {
-            console.error('Error initiating audio call:', error);
-            Alert.alert('Call Failed', 'An error occurred while initiating the call');
+            console.error('❌ Error accepting call:', error);
+            Alert.alert('Call Failed', 'An error occurred');
         }
-    };
+    }, [incomingCall, clearCallTimeout]);
 
-    // CHANGED: Updated call end handler to clear timeout
-    const handleCallEnd = () => {
-        if (callTimeoutRef.current) {
-            clearTimeout(callTimeoutRef.current);
-            callTimeoutRef.current = null;
-        }
-
-        if (activeCall) {
-            callService.endCall();
-        }
-
-        setShowCallScreen(false);
-        setActiveCall(null);
-        setIncomingCall(null);
-        callService.setActiveCall(null);
-    };
-
-    // CHANGED: Updated accept call handler
-    const handleAcceptIncomingCall = async () => {
+    const handleRejectIncomingCall = useCallback(() => {
         if (incomingCall) {
-            // Clear any existing timeout
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-
-            await callService.acceptCall(incomingCall.callId, incomingCall.callerId);
-            setActiveCall(incomingCall);
-            setIncomingCall(null);
-            setShowCallScreen(true);
-        }
-    };
-
-    // CHANGED: Updated reject call handler
-    const handleRejectIncomingCall = () => {
-        if (incomingCall) {
-            if (callTimeoutRef.current) {
-                clearTimeout(callTimeoutRef.current);
-                callTimeoutRef.current = null;
-            }
-
-            callService.rejectCall(incomingCall.callId, incomingCall.callerId);
+            clearCallTimeout();
+            callService.rejectCall(incomingCall.callId, incomingCall.callerId, 'Call rejected by user');
             setIncomingCall(null);
             callService.setActiveCall(null);
         }
-    };
+    }, [incomingCall, clearCallTimeout]);
 
-    const handleStartRecording = async () => {
+    const handleStartRecording = useCallback(async () => {
         await startRecording(setRecording, setIsRecording);
-    };
+    }, []);
 
-    const handleStopRecording = async () => {
+    const handleStopRecording = useCallback(async () => {
         const uri = await stopRecording(recording, setIsRecording);
-        if (uri) {
-            handleAudioUpload(uri);
-        }
+        if (uri) handleImageUpload(uri);
         setRecording(null);
-    };
+    }, [recording, handleImageUpload]);
 
-    const handleSelectMessage = (message: ExtendedMessage) => {
-        const isSelected = selectedMessages.includes(message?._id);
+    const handleSelectMessage = useCallback((msg: ExtendedMessage) => {
+        setSelectedMessages(prev => {
+            const isSelected = prev.includes(msg._id);
+            return isSelected
+                ? prev.filter(id => id !== msg._id)
+                : [...prev, msg._id];
+        });
+    }, []);
 
-        if (isSelected) {
-            setSelectedMessages((previousMessages) =>
-                previousMessages.filter((id) => id !== message._id)
-            );
-        } else {
-            setSelectedMessages((previousMessages) => [
-                ...previousMessages,
-                message._id,
-            ]);
-        }
-    };
-
-    const handleDeleteMessage = async () => {
+    const handleDeleteMessage = useCallback(async () => {
         if (selectedMessages.length === 0) return;
 
-        const messagesToDelete = messages.filter(msg =>
-            selectedMessages.includes(msg._id)
-        );
+        const messagesToDelete = messages.filter(msg => selectedMessages.includes(msg._id));
 
         await messageDeletionService.deleteMessagesWithConfirmation(
             messagesToDelete,
             () => {
-                setMessages(prevMessages =>
-                    prevMessages.filter(msg => !selectedMessages.includes(msg._id))
-                );
+                setMessages(prev => prev.filter(msg => !selectedMessages.includes(msg._id)));
                 setSelectedMessages([]);
             }
         );
-    };
+    }, [selectedMessages, messages]);
 
+    // ============================================
+    // RETURN VALUES
+    // ============================================
     return {
         // State
         selectedMessages,
